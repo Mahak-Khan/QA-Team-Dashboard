@@ -21,8 +21,13 @@ DATABASE_URL = (
     f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
+connect_args = {}
+if "tidbcloud" in DB_HOST or str(DB_PORT) == "4000" or os.getenv("DB_SSL", "").lower() == "true":
+    connect_args["ssl"] = {"check_hostname": False}
+
 engine = create_engine(
     DATABASE_URL,
+    connect_args=connect_args,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,

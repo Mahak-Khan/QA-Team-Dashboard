@@ -66,6 +66,29 @@ async def lifespan(app: FastAPI):
                 conn.execute(text("ALTER TABLE bugs MODIFY COLUMN severity VARCHAR(30) NOT NULL DEFAULT 'medium'"))
 
             conn.commit()
+
+        # Ensure default manager and tester exist on startup
+        from app.database import SessionLocal
+        from app.models.user import User
+        from app.core.security import get_password_hash
+        with SessionLocal() as session:
+            if not session.query(User).filter(User.role == "manager").first():
+                session.add(User(
+                    name="Lead QA Manager",
+                    email="manager@example.com",
+                    password_hash=get_password_hash("password123"),
+                    role="manager",
+                    is_active=True
+                ))
+            if not session.query(User).filter(User.role == "tester").first():
+                session.add(User(
+                    name="QA Tester",
+                    email="tester@example.com",
+                    password_hash=get_password_hash("password123"),
+                    role="tester",
+                    is_active=True
+                ))
+            session.commit()
     except Exception as e:
         print(f"Database schema initialization/migration notice: {e}")
     yield
