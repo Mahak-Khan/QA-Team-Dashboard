@@ -16,6 +16,7 @@ export function ManagerProjects() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem("qa_manager_project_view") || "grid");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -262,6 +263,34 @@ export function ManagerProjects() {
             <option value="on_hold">On Hold</option>
           </select>
 
+          {/* View Mode Switcher: Grid vs List */}
+          <div className="view-mode-bar" style={{ display: "inline-flex", background: "var(--bg-surface-elevated)", borderRadius: "var(--radius-md)", padding: "3px", border: "1px solid var(--border-default)" }}>
+            <button
+              type="button"
+              className={`view-mode-btn ${viewMode === "grid" ? "active" : ""}`}
+              onClick={() => {
+                setViewMode("grid");
+                localStorage.setItem("qa_manager_project_view", "grid");
+              }}
+              title="Card Grid View"
+            >
+              <Icon name="grid" size={15} />
+              <span>Grid</span>
+            </button>
+            <button
+              type="button"
+              className={`view-mode-btn ${viewMode === "list" ? "active" : ""}`}
+              onClick={() => {
+                setViewMode("list");
+                localStorage.setItem("qa_manager_project_view", "list");
+              }}
+              title="Table List View"
+            >
+              <Icon name="list" size={15} />
+              <span>List</span>
+            </button>
+          </div>
+
           {(search || statusFilter) && (
             <button
               className="btn btn-secondary btn-sm"
@@ -299,7 +328,270 @@ export function ManagerProjects() {
             </button>
           )}
         </div>
+      ) : viewMode === "list" ? (
+        /* Table / List View */
+        <div className="table-container-card">
+          <div className="table-scroll">
+            <table className="custom-table" style={{ minWidth: "960px" }}>
+              <thead>
+                <tr>
+                  <th style={{ width: "24%" }}>Project Name</th>
+                  <th style={{ width: "12%" }}>Status</th>
+                  <th style={{ width: "13%" }}>QA Timeline</th>
+                  <th style={{ width: "12%" }}>Testing Sheet</th>
+                  <th style={{ width: "26%" }}>Defect Tally</th>
+                  <th style={{ width: "13%", textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProjects.map((project) => (
+                  <tr key={project.id}>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                        <div
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: "var(--radius-md)",
+                            background: "var(--primary-subtle)",
+                            color: "var(--primary)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px solid rgba(99, 102, 241, 0.25)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Icon name="projects" size={17} />
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+                            <strong style={{ color: "var(--text-main)", fontSize: "0.95rem" }}>
+                              {project.name}
+                            </strong>
+                            <span
+                              style={{
+                                fontSize: "0.7rem",
+                                fontFamily: "var(--font-mono)",
+                                color: "var(--text-faint)",
+                                background: "var(--bg-surface-elevated)",
+                                padding: "0.1rem 0.35rem",
+                                borderRadius: "var(--radius-sm)",
+                              }}
+                            >
+                              #{project.id}
+                            </span>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "0.78rem",
+                              color: "var(--text-muted)",
+                              maxWidth: "280px",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                            title={project.description}
+                          >
+                            {project.description || "No project description provided."}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <select
+                        value={project.status || "active"}
+                        onChange={(e) => handleStatusChange(project.id, e.target.value)}
+                        style={{
+                          padding: "0.25rem 0.65rem",
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          borderRadius: "var(--radius-full)",
+                          background:
+                            project.status === "completed"
+                              ? "var(--success-subtle)"
+                              : project.status === "on_hold"
+                                ? "var(--warning-subtle)"
+                                : "var(--primary-subtle)",
+                          color:
+                            project.status === "completed"
+                              ? "var(--success)"
+                              : project.status === "on_hold"
+                                ? "var(--warning)"
+                                : "var(--primary)",
+                          border: "1px solid var(--border-subtle)",
+                          cursor: "pointer",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="on_hold">On Hold</option>
+                      </select>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.78rem", color: "var(--text-main)" }}>
+                          <Icon name="calendar" size={12} color="var(--primary)" />
+                          <span>{project.start_date ? project.start_date : "Flexible"}</span>
+                        </div>
+                        {project.end_date && (
+                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", paddingLeft: "1rem" }}>
+                            to {project.end_date}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      {project.excel_sheet_url ? (
+                        <a
+                          href={project.excel_sheet_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{
+                            padding: "0.22rem 0.55rem",
+                            fontSize: "0.74rem",
+                            color: "#10b981",
+                            borderColor: "rgba(16, 185, 129, 0.4)",
+                            background: "rgba(16, 185, 129, 0.08)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.3rem",
+                            textDecoration: "none",
+                            whiteSpace: "nowrap",
+                          }}
+                          title="Open live test spreadsheet in a new tab"
+                        >
+                          <span>Open Sheet</span>
+                          <Icon name="externalLink" size={11} color="#10b981" />
+                        </a>
+                      ) : (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => openTallyModal(project)}
+                          style={{ fontSize: "0.74rem", padding: "0.22rem 0.55rem", whiteSpace: "nowrap" }}
+                        >
+                          + Link Sheet
+                        </button>
+                      )}
+                    </td>
+                    <td style={{ verticalAlign: "middle" }}>
+                      <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "var(--radius-sm)",
+                            background: "rgba(244, 63, 94, 0.12)",
+                            color: "#f43f5e",
+                            border: "1px solid rgba(244, 63, 94, 0.25)",
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <strong>{project.open_bugs || 0}</strong> Open
+                        </span>
+                        <span
+                          style={{
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "var(--radius-sm)",
+                            background: "rgba(245, 158, 11, 0.12)",
+                            color: "#f59e0b",
+                            border: "1px solid rgba(245, 158, 11, 0.25)",
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <strong>{project.need_retest_bugs || 0}</strong> Retest
+                        </span>
+                        <span
+                          style={{
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "var(--radius-sm)",
+                            background: "rgba(6, 182, 212, 0.12)",
+                            color: "#06b6d4",
+                            border: "1px solid rgba(6, 182, 212, 0.25)",
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <strong>{project.retested_bugs || 0}</strong> Tested
+                        </span>
+                        <span
+                          style={{
+                            padding: "0.15rem 0.4rem",
+                            borderRadius: "var(--radius-sm)",
+                            background: "rgba(16, 185, 129, 0.12)",
+                            color: "#10b981",
+                            border: "1px solid rgba(16, 185, 129, 0.25)",
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <strong>{project.closed_bugs || project.fixed_bugs || 0}</strong> Closed
+                        </span>
+                        {Number(project.critical_bugs) > 0 && (
+                          <span
+                            style={{
+                              padding: "0.15rem 0.4rem",
+                              borderRadius: "var(--radius-sm)",
+                              background: "rgba(239, 68, 68, 0.2)",
+                              color: "#ef4444",
+                              border: "1px solid rgba(239, 68, 68, 0.4)",
+                              fontSize: "0.72rem",
+                              fontWeight: 700,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <strong>{project.critical_bugs}</strong> Crit
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: "right", verticalAlign: "middle" }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: "0.4rem", whiteSpace: "nowrap" }}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => openTallyModal(project)}
+                          title="Quick Sync Live Bug Counts"
+                          style={{
+                            padding: "0.3rem 0.55rem",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.3rem",
+                            fontSize: "0.75rem",
+                          }}
+                        >
+                          <Icon name="refresh" size={13} />
+                          <span>Sync</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(project.id, project.name)}
+                          className="btn btn-secondary btn-sm"
+                          style={{
+                            padding: "0.3rem 0.5rem",
+                            color: "var(--danger)",
+                            borderColor: "rgba(244, 63, 94, 0.25)",
+                            background: "rgba(244, 63, 94, 0.08)",
+                          }}
+                          title="Delete Project"
+                        >
+                          <Icon name="trash" size={14} color="var(--danger)" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
+        /* Card Grid View */
         <div
           style={{
             display: "grid",
