@@ -12,6 +12,7 @@ from app.models.notification import Notification
 from app.models.user import User
 from app.schemas.bug import BugCreate, BugResponse, BugStatusUpdate, BugUpdate
 from app.core.dependencies import get_current_user
+from app.services.activity_service import record_activity
 
 router = APIRouter(prefix="/bugs", tags=["Bugs"])
 
@@ -96,6 +97,16 @@ def create_bug(
                     is_read=False,
                 )
                 db.add(notif)
+
+    # Record testing pulse activity
+    record_activity(
+        db=db,
+        user_id=current_user.id,
+        action_type="bug_reported",
+        title=f"Reported {bug.severity.upper()} {issue_type_label}: '{bug.title}'",
+        description=bug.description,
+        project_id=bug.project_id,
+    )
 
     db.commit()
     db.refresh(bug)
@@ -223,6 +234,16 @@ def update_bug(
                 )
                 db.add(notif)
 
+    # Record testing pulse activity
+    record_activity(
+        db=db,
+        user_id=current_user.id,
+        action_type="bug_updated",
+        title=f"Updated Defect #{bug.id}: '{bug.title}'",
+        description=f"Status: {bug.status}, Severity: {bug.severity.upper()}",
+        project_id=bug.project_id,
+    )
+
     db.commit()
     db.refresh(bug)
     return bug
@@ -280,6 +301,16 @@ def update_bug_status(
                     is_read=False,
                 )
                 db.add(notif)
+
+    # Record testing pulse activity
+    record_activity(
+        db=db,
+        user_id=current_user.id,
+        action_type="bug_status_updated",
+        title=f"Changed defect #{bug.id} status to '{bug.status.upper()}'",
+        description=f"Defect '{bug.title}' status changed to {bug.status}",
+        project_id=bug.project_id,
+    )
 
     db.commit()
     db.refresh(bug)

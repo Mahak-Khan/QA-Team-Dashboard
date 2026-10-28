@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse
 from app.core.security import verify_password, create_access_token
+from app.services.activity_service import record_activity
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -44,6 +45,16 @@ def login(
         "sub": str(user.id),
         "role": user.role
     })
+
+    # Record login activity
+    record_activity(
+        db=db,
+        user_id=user.id,
+        action_type="session_login",
+        title=f"User logged in ({user.role.title()})",
+        description=f"Active session initiated from dashboard",
+    )
+    db.commit()
 
     return {
         "access_token": token,

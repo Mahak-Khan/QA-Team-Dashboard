@@ -20,6 +20,7 @@ from app.models.project_update import ProjectUpdate
 from app.schemas.project_update import ProjectUpdateCreate
 from app.models.notification import Notification
 from app.models.bug import Bug
+from app.services.activity_service import record_activity
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -374,6 +375,16 @@ def save_project_update(
             is_read=False,
         )
         db.add(notif)
+
+    # Record testing pulse activity
+    record_activity(
+        db=db,
+        user_id=current_user.id,
+        action_type="progress_submitted",
+        title=f"Submitted Sprint Progress ({update.progress}%) - {project_title}",
+        description=f"Sprint: {update.sprint_name or 'Sprint cycle'} | Remarks: {update.remarks or 'Updated progress'}",
+        project_id=project_id,
+    )
 
     db.commit()
     db.refresh(update)

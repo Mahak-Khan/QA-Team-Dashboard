@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { NotificationBell } from "./NotificationBell";
+import { ActivityTracker } from "./ActivityTracker";
 
 export function Topbar({ role = "manager" }) {
   const location = useLocation();
@@ -29,6 +30,7 @@ export function Topbar({ role = "manager" }) {
       </div>
 
       <div className="topbar-right">
+        <ActivityTracker role={role} />
         <NotificationBell role={role} />
 
         <div className={`role-pill-badge ${role}`}>

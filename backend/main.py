@@ -9,7 +9,9 @@ from app.routers.auth import router as auth_router
 from app.routers.projects import router as projects_router
 from app.routers.team import router as team_router
 from app.routers.notifications import router as notifications_router
+from app.routers.activity import router as activity_router
 from app.routers import bugs
+from app.services.activity_service import backfill_historical_activities
 
 
 @asynccontextmanager
@@ -95,6 +97,8 @@ async def lifespan(app: FastAPI):
                     is_active=True
                 ))
             session.commit()
+            # Backfill historical activities from existing bugs/updates if activity table is empty
+            backfill_historical_activities(session)
     except Exception as e:
         print(f"Database schema initialization/migration notice: {e}")
     yield
@@ -115,6 +119,7 @@ app.include_router(projects_router)
 app.include_router(team_router)
 app.include_router(bugs.router)
 app.include_router(notifications_router)
+app.include_router(activity_router)
 
 @app.get("/")
 def home():
