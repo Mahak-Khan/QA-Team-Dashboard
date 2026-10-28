@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { getBugs, updateBugStatus, getBugSummary } from "../../services/bugService";
+import React, { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { getBugs, updateBug, updateBugStatus, getBugSummary } from "../../services/bugService";
 import { getProjects, updateProjectMetrics } from "../../services/projectService";
 import { Icon } from "../../components/common/Icons";
-import { StatusBadge, SeverityBadge } from "../../components/common/Badge";
+import { StatusBadge, SeverityBadge, IssueTypeBadge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { useToast } from "../../context/ToastContext";
 
@@ -12,7 +13,8 @@ export function ManagerBugs() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters for granular bugs
+  // Focus queue filter: "all_active" | "today" | "need_retest" | "critical"
+  const [focusFilter, setFocusFilter] = useState("all_active");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
@@ -20,6 +22,16 @@ export function ManagerBugs() {
 
   // Inspect Modal
   const [activeBug, setActiveBug] = useState(null);
+
+  // Quick Edit Modal
+  const [editBug, setEditBug] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSeverity, setEditSeverity] = useState("medium");
+  const [editStatus, setEditStatus] = useState("open");
+  const [editCategory, setEditCategory] = useState("bug");
+  const [editSheetUrl, setEditSheetUrl] = useState("");
+  const [submittingEdit, setSubmittingEdit] = useState(false);
 
   // Quick Sync Tally Modal for Project Sheets
   const [tallyProject, setTallyProject] = useState(null);
@@ -132,6 +144,61 @@ export function ManagerBugs() {
     }
   };
 
+  const isCreatedToday = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const today = new Date();
+    return (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const openEditModal = (bug) => {
+    setEditBug(bug);
+    setEditTitle(bug.title || "");
+    setEditDescription(bug.description || "");
+    setEditSeverity(bug.severity || "medium");
+    setEditStatus(bug.status || "open");
+    setEditCategory(bug.category || "bug");
+    setEditSheetUrl(bug.sheet_url || "");
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editBug) return;
+    if (!editTitle.trim()) {
+      addToast("Title is required", "error");
+      return;
+    }
+    setSubmittingEdit(true);
+    try {
+      const updated = await updateBug(editBug.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim() || null,
+        severity: editSeverity,
+        status: editStatus,
+        category: editCategory,
+        sheet_url: editSheetUrl.trim() || null,
+      });
+      addToast(`Defect #${editBug.id} updated successfully!`, "success");
+      setBugs((prev) =>
+        prev.map((b) => (b.id === editBug.id ? { ...b, ...updated } : b))
+      );
+      if (activeBug && activeBug.id === editBug.id) {
+        setActiveBug((prev) => ({ ...prev, ...updated }));
+      }
+      const newSummary = await getBugSummary();
+      if (newSummary) setBugSummary(newSummary);
+      setEditBug(null);
+    } catch (err) {
+      addToast(err.response?.data?.detail || "Failed to update defect.", "error");
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
   const totalOpenBugs = Number(bugSummary.open ?? 0);
   const totalNeedRetest = Number(bugSummary.need_retest ?? 0);
   const totalRetested = Number(bugSummary.retested ?? 0);
@@ -139,21 +206,64 @@ export function ManagerBugs() {
   const totalCriticalBugs = Number(bugSummary.severities?.critical ?? 0);
   const totalOverallBugs = Number(bugSummary.total ?? 0);
 
-  const filteredBugs = bugs.filter((bug) => {
-    const matchesSearch =
-      !search ||
-      (bug.title || "").toLowerCase().includes(search.toLowerCase()) ||
-      (bug.description || "").toLowerCase().includes(search.toLowerCase());
+  // Queue counts for active workspace (Single-pass O(N) memoized accumulator)
+  const { todayCount, needRetestCount, criticalActiveCount, allActiveCount } = useMemo(() => {
+    let today = 0;
+    let needRetest = 0;
+    let criticalActive = 0;
+    let allActive = 0;
 
-    const matchesStatus = !statusFilter || bug.status === statusFilter;
-    const matchesSeverity =
-      !severityFilter ||
-      (bug.severity || "").toLowerCase() === severityFilter.toLowerCase();
-    const matchesProject =
-      !projectFilter || String(bug.project_id) === projectFilter;
+    for (let i = 0; i < bugs.length; i++) {
+      const b = bugs[i];
+      if (isCreatedToday(b.created_at)) today++;
+      if (b.status === "need_retest") needRetest++;
+      if (b.status !== "closed") {
+        allActive++;
+        if ((b.severity || "").toLowerCase() === "critical") criticalActive++;
+      }
+    }
 
-    return matchesSearch && matchesStatus && matchesSeverity && matchesProject;
-  });
+    return {
+      todayCount: today,
+      needRetestCount: needRetest,
+      criticalActiveCount: criticalActive,
+      allActiveCount: allActive,
+    };
+  }, [bugs]);
+
+  // Automatically default filter to today if today has items
+  useEffect(() => {
+    if (todayCount > 0) {
+      setFocusFilter("today");
+    }
+  }, [todayCount]);
+
+  const focusedBugs = useMemo(() => {
+    return bugs.filter((bug) => {
+      if (focusFilter === "today" && !isCreatedToday(bug.created_at)) return false;
+      if (focusFilter === "need_retest" && bug.status !== "need_retest") return false;
+      if (
+        focusFilter === "critical" &&
+        ((bug.severity || "").toLowerCase() !== "critical" || bug.status === "closed")
+      )
+        return false;
+      if (focusFilter === "all_active" && bug.status === "closed") return false;
+
+      const matchesSearch =
+        !search ||
+        (bug.title || "").toLowerCase().includes(search.toLowerCase()) ||
+        (bug.description || "").toLowerCase().includes(search.toLowerCase());
+
+      const matchesStatus = !statusFilter || bug.status === statusFilter;
+      const matchesSeverity =
+        !severityFilter ||
+        (bug.severity || "").toLowerCase() === severityFilter.toLowerCase();
+      const matchesProject =
+        !projectFilter || String(bug.project_id) === projectFilter;
+
+      return matchesSearch && matchesStatus && matchesSeverity && matchesProject;
+    });
+  }, [bugs, focusFilter, search, statusFilter, severityFilter, projectFilter]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
@@ -166,10 +276,16 @@ export function ManagerBugs() {
           </p>
         </div>
 
-        <button className="btn btn-secondary" onClick={loadData}>
-          <Icon name="refresh" size={16} />
-          <span>Refresh Data</span>
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <Link to="/manager/bug-list" className="btn btn-primary">
+            <Icon name="bugs" size={16} />
+            <span>View Reported Bug List</span>
+          </Link>
+          <button className="btn btn-secondary" onClick={loadData}>
+            <Icon name="refresh" size={16} />
+            <span>Refresh Sheets</span>
+          </button>
+        </div>
       </div>
 
       {/* Aggregate KPI Badges Strip */}
@@ -293,7 +409,7 @@ export function ManagerBugs() {
           </div>
         ) : (
           <div className="table-scroll">
-            <table className="custom-table">
+            <table className="custom-table" style={{ minWidth: "920px" }}>
               <thead>
                 <tr>
                   <th style={{ width: "18%", whiteSpace: "nowrap", padding: "0.65rem 0.5rem" }}>Project</th>
@@ -496,33 +612,141 @@ export function ManagerBugs() {
         )}
       </div>
 
-      {/* Secondary Section: Detailed Bug Ticket Log */}
+      {/* Secondary Section: Today's Active Focus & Retest Queue */}
       <div className="card">
-        <div className="card-header">
+        <div className="card-header" style={{ alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
           <div className="card-title-group">
-            <h3>Individual Defect Tickets (Investigation & Retest Workflow)</h3>
+            <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Icon name="clock" size={18} color="var(--primary)" />
+              <span>Today's Active Focus & Retest Queue</span>
+              <span
+                style={{
+                  fontSize: "0.78rem",
+                  padding: "0.15rem 0.55rem",
+                  borderRadius: "var(--radius-full)",
+                  background: "rgba(99, 102, 241, 0.15)",
+                  color: "var(--primary)",
+                  fontWeight: 600,
+                }}
+              >
+                {focusedBugs.length} in queue
+              </span>
+            </h3>
             <p className="card-subtitle">
-              Granular tickets logged for reproduction steps and retest validation
+              Focused real-time workspace for today's reported defects, pending QA retests, and critical escalations.
             </p>
+          </div>
+
+          <Link
+            to="/manager/bug-list"
+            className="btn btn-secondary btn-sm"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              background: "rgba(168, 85, 247, 0.1)",
+              borderColor: "rgba(168, 85, 247, 0.35)",
+              color: "#c084fc",
+            }}
+          >
+            <Icon name="bugs" size={14} color="#c084fc" />
+            <span>Full Historical Archive ({bugs.length} total)</span>
+            <Icon name="arrowRight" size={12} color="#c084fc" />
+          </Link>
+        </div>
+
+        {/* Notice Banner */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0.75rem 1rem",
+            borderRadius: "var(--radius-md)",
+            background: "rgba(99, 102, 241, 0.06)",
+            border: "1px solid rgba(99, 102, 241, 0.2)",
+            margin: "0.5rem 0 1rem 0",
+            gap: "0.75rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <span style={{ color: "var(--primary)", display: "flex" }}>
+              <Icon name="shield" size={16} />
+            </span>
+            <span style={{ fontSize: "0.825rem", color: "var(--text-main)" }}>
+              <strong>Active Workspace Filter:</strong> Displaying actionable tickets. Historical records are preserved in the <strong>Reported Bug List</strong>.
+            </span>
+          </div>
+
+          {/* Focus Queue Segmented Pills */}
+          <div style={{ display: "inline-flex", gap: "0.35rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className={`btn btn-sm ${focusFilter === "all_active" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFocusFilter("all_active")}
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem" }}
+            >
+              All Active ({allActiveCount})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${focusFilter === "today" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFocusFilter("today")}
+              style={{
+                fontSize: "0.75rem",
+                padding: "0.25rem 0.65rem",
+                borderColor: focusFilter !== "today" && todayCount > 0 ? "rgba(168, 85, 247, 0.5)" : undefined,
+                color: focusFilter !== "today" && todayCount > 0 ? "#c084fc" : undefined,
+              }}
+            >
+              Today's Logs ({todayCount})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${focusFilter === "need_retest" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFocusFilter("need_retest")}
+              style={{
+                fontSize: "0.75rem",
+                padding: "0.25rem 0.65rem",
+                borderColor: focusFilter !== "need_retest" && needRetestCount > 0 ? "rgba(245, 158, 11, 0.5)" : undefined,
+                color: focusFilter !== "need_retest" && needRetestCount > 0 ? "#f59e0b" : undefined,
+              }}
+            >
+              Ready for Retest ({needRetestCount})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${focusFilter === "critical" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFocusFilter("critical")}
+              style={{
+                fontSize: "0.75rem",
+                padding: "0.25rem 0.65rem",
+                borderColor: focusFilter !== "critical" && criticalActiveCount > 0 ? "rgba(244, 63, 94, 0.5)" : undefined,
+                color: focusFilter !== "critical" && criticalActiveCount > 0 ? "#f43f5e" : undefined,
+              }}
+            >
+              Critical ({criticalActiveCount})
+            </button>
           </div>
         </div>
 
-        {/* Filter and Search Bar for granular bugs */}
-        <div className="filter-search-container" style={{ margin: "0.5rem 0 1.25rem 0" }}>
-          <div className="search-input-wrapper">
+        {/* Filter and Search Bar */}
+        <div className="filter-search-container" style={{ margin: "0.25rem 0 1.25rem 0", flexWrap: "wrap" }}>
+          <div className="search-input-wrapper" style={{ minWidth: 240, flex: "1 1 240px" }}>
             <span className="search-icon">
               <Icon name="search" size={16} />
             </span>
             <input
               type="text"
               className="search-input-field"
-              placeholder="Search individual bug tickets..."
+              placeholder="Search active tickets in queue..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
-          <div className="filters-cluster">
+          <div className="filters-cluster" style={{ flexWrap: "wrap" }}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -574,128 +798,391 @@ export function ManagerBugs() {
           </div>
         </div>
 
-        {/* Granular Tickets Table */}
-        {filteredBugs.length === 0 ? (
-          <div className="empty-state-card" style={{ padding: "2rem" }}>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              {search || statusFilter || severityFilter || projectFilter
-                ? "No bug tickets match your filters."
-                : "No individual tickets logged. Bugs are tracked directly in attached project cloud sheets above."}
+        {/* Active Queue Table */}
+        {focusedBugs.length === 0 ? (
+          <div className="empty-state-card" style={{ padding: "2.5rem 1.5rem" }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "rgba(16, 185, 129, 0.12)",
+                color: "#10b981",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 0.75rem auto",
+              }}
+            >
+              <Icon name="check" size={24} />
+            </div>
+            <h4 style={{ margin: "0 0 0.35rem 0", color: "var(--text-main)" }}>
+              {focusFilter === "today"
+                ? "No New Defects Logged Today"
+                : focusFilter === "need_retest"
+                  ? "No Retests Awaiting Verification"
+                  : focusFilter === "critical"
+                    ? "No Active Critical Blockers"
+                    : "Active Queue is Empty"}
+            </h4>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", maxWidth: 420, margin: "0 auto 1rem auto" }}>
+              {focusFilter === "today"
+                ? "No issues have been reported so far today. You can inspect previous sprint records in the historical archive."
+                : "All priority tickets in this filter view have been addressed or signed off."}
             </p>
+            <Link to="/manager/bug-list" className="btn btn-secondary btn-sm">
+              <span>View Full Historical Bug List</span>
+              <Icon name="arrowRight" size={13} />
+            </Link>
           </div>
         ) : (
           <div className="table-scroll">
-            <table className="custom-table">
+            <table className="custom-table" style={{ minWidth: "980px" }}>
               <thead>
                 <tr>
-                  <th style={{ width: "33%" }}>Defect Summary</th>
-                  <th style={{ width: "16%" }}>Project</th>
-                  <th style={{ width: "12%" }}>Severity</th>
-                  <th style={{ width: "14%" }}>QA Status</th>
-                  <th style={{ width: "13%" }}>Reported Date</th>
-                  <th style={{ width: "12%", textAlign: "right" }}>Action</th>
+                  <th style={{ minWidth: "240px", padding: "0.75rem 0.75rem" }}>Defect Summary</th>
+                  <th style={{ minWidth: "125px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>Type</th>
+                  <th style={{ minWidth: "130px", padding: "0.75rem 0.6rem" }}>Project</th>
+                  <th style={{ minWidth: "100px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>Severity</th>
+                  <th style={{ minWidth: "135px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>QA Status</th>
+                  <th style={{ minWidth: "125px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>Linked Sheet</th>
+                  <th style={{ minWidth: "165px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>Reported Time</th>
+                  <th style={{ minWidth: "155px", textAlign: "right", padding: "0.75rem 0.75rem", whiteSpace: "nowrap" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredBugs.map((bug) => (
-                  <tr key={bug.id}>
-                    <td>
-                      <div
-                        style={{ cursor: "pointer" }}
-                        onClick={() => setActiveBug(bug)}
-                      >
-                        <strong
-                          style={{
-                            color: "var(--text-main)",
-                            fontSize: "0.925rem",
-                            display: "block",
-                            marginBottom: "0.2rem",
-                          }}
-                        >
-                          {bug.title}
-                        </strong>
+                {focusedBugs.map((bug) => {
+                  const todayLogged = isCreatedToday(bug.created_at);
+                  return (
+                    <tr key={bug.id}>
+                      <td>
                         <div
+                          style={{ cursor: "pointer" }}
+                          onClick={() => setActiveBug(bug)}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-mono)",
+                                fontSize: "0.75rem",
+                                color: "var(--text-faint)",
+                                background: "var(--bg-surface-elevated)",
+                                padding: "0.15rem 0.4rem",
+                                borderRadius: "var(--radius-sm)",
+                              }}
+                            >
+                              #{bug.id}
+                            </span>
+                            <strong
+                              style={{
+                                color: "var(--text-main)",
+                                fontSize: "0.915rem",
+                                display: "block",
+                              }}
+                            >
+                              {bug.title}
+                            </strong>
+                          </div>
+                          {bug.description && (
+                            <div
+                              style={{
+                                fontSize: "0.775rem",
+                                color: "var(--text-muted)",
+                                maxWidth: 360,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                marginTop: "0.2rem",
+                                paddingLeft: "0.2rem",
+                              }}
+                            >
+                              {bug.description}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td>
+                        <IssueTypeBadge category={bug.category} />
+                      </td>
+
+                      <td>
+                        <strong style={{ fontSize: "0.85rem", color: "var(--text-main)" }}>
+                          {bug.project_name || `Project #${bug.project_id}`}
+                        </strong>
+                      </td>
+
+                      <td>
+                        <SeverityBadge severity={bug.severity} />
+                      </td>
+
+                      <td>
+                        <select
+                          value={bug.status}
+                          onChange={(e) => handleStatusChange(bug.id, e.target.value)}
                           style={{
+                            padding: "0.28rem 0.55rem",
                             fontSize: "0.785rem",
-                            color: "var(--text-muted)",
-                            maxWidth: 380,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            fontWeight: 600,
+                            borderRadius: "var(--radius-sm)",
+                            background: "var(--bg-surface-elevated)",
+                            color: "var(--text-main)",
+                            border: "1px solid var(--border-color)",
+                            cursor: "pointer",
+                            width: "auto",
+                            maxWidth: "100%",
                           }}
                         >
-                          {bug.description || "No description provided."}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "0.8rem",
-                          color: "var(--text-faint)",
-                          background: "var(--bg-surface-elevated)",
-                          padding: "0.2rem 0.5rem",
-                          borderRadius: "var(--radius-sm)",
-                        }}
-                      >
-                        #{bug.project_id}
-                      </span>
-                    </td>
-                    <td>
-                      <SeverityBadge severity={bug.severity} />
-                    </td>
-                    <td>
-                      <select
-                        value={bug.status}
-                        onChange={(e) => handleStatusChange(bug.id, e.target.value)}
-                        style={{
-                          padding: "0.3rem 0.6rem",
-                          fontSize: "0.785rem",
-                          fontWeight: 600,
-                          borderRadius: "var(--radius-sm)",
-                          background: "var(--bg-surface-elevated)",
-                          color: "var(--text-main)",
-                          border: "1px solid var(--border-color)",
-                          cursor: "pointer",
-                          width: "auto",
-                          maxWidth: "100%",
-                        }}
-                      >
-                        {statuses.map((s) => (
-                          <option key={s.key} value={s.key}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      {bug.created_at ? (
-                        <div style={{ fontSize: "0.785rem", color: "var(--text-faint)", lineHeight: 1.3 }}>
-                          <div>{new Date(bug.created_at).toLocaleDateString()}</div>
-                          <div style={{ fontSize: "0.7rem", opacity: 0.8 }}>
-                            {new Date(bug.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {statuses.map((s) => (
+                            <option key={s.key} value={s.key}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      <td style={{ padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>
+                        {bug.sheet_url ? (
+                          <a
+                            href={bug.sheet_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary btn-sm"
+                            style={{
+                              fontSize: "0.72rem",
+                              padding: "0.2rem 0.45rem",
+                              color: "#10b981",
+                              borderColor: "rgba(16, 185, 129, 0.4)",
+                              background: "rgba(16, 185, 129, 0.08)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.3rem",
+                            }}
+                            title="Open linked Google Sheet / Excel in new tab"
+                          >
+                            <Icon name="sheet" size={12} color="#10b981" />
+                            <span>Sheet</span>
+                            <Icon name="externalLink" size={10} color="#10b981" />
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-faint)" }}>—</span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>
+                        {bug.created_at ? (
+                          <div style={{ fontSize: "0.8rem", color: "var(--text-main)", lineHeight: 1.35, whiteSpace: "nowrap" }}>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", whiteSpace: "nowrap" }}>
+                              {todayLogged && (
+                                <span
+                                  style={{
+                                    fontSize: "0.68rem",
+                                    padding: "0.12rem 0.4rem",
+                                    borderRadius: "var(--radius-sm)",
+                                    background: "rgba(16, 185, 129, 0.15)",
+                                    color: "#10b981",
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                    display: "inline-block",
+                                    letterSpacing: "0.04em",
+                                  }}
+                                >
+                                  TODAY
+                                </span>
+                              )}
+                              <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                                {new Date(bug.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: "0.72rem", color: "var(--text-faint)", marginTop: "0.15rem", whiteSpace: "nowrap" }}>
+                              {new Date(bug.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </div>
                           </div>
+                        ) : (
+                          <span style={{ fontSize: "0.785rem", color: "var(--text-faint)" }}>—</span>
+                        )}
+                      </td>
+
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap", padding: "0.75rem 0.75rem" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", whiteSpace: "nowrap" }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openEditModal(bug)}
+                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem", whiteSpace: "nowrap", flexShrink: 0 }}
+                            title="Quick Edit defect"
+                          >
+                            <Icon name="edit" size={12} />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setActiveBug(bug)}
+                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem", whiteSpace: "nowrap", flexShrink: 0 }}
+                          >
+                            Inspect
+                          </button>
                         </div>
-                      ) : (
-                        <span style={{ fontSize: "0.785rem", color: "var(--text-faint)" }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setActiveBug(bug)}
-                      >
-                        Inspect
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Modal: Quick Edit Defect */}
+      {editBug && (
+        <Modal
+          isOpen={Boolean(editBug)}
+          onClose={() => !submittingEdit && setEditBug(null)}
+          title={`Quick Edit Defect #${editBug.id}`}
+        >
+          <form onSubmit={handleSaveEdit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div className="form-group">
+              <label className="form-label">Classification / Issue Type</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div
+                  style={{
+                    padding: "0.75rem 0.85rem",
+                    borderRadius: "var(--radius-md)",
+                    border:
+                      editCategory === "bug"
+                        ? "2px solid #f43f5e"
+                        : "1px solid var(--border-color)",
+                    background:
+                      editCategory === "bug"
+                        ? "rgba(244, 63, 94, 0.12)"
+                        : "var(--bg-surface-elevated)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    transition: "all 0.15s ease",
+                  }}
+                  onClick={() => setEditCategory("bug")}
+                >
+                  <Icon name="bugs" size={16} color="#f43f5e" />
+                  <div>
+                    <div style={{ color: "var(--text-main)", fontSize: "0.85rem", fontWeight: 700 }}>Software Defect</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Code bug or glitch</div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "0.75rem 0.85rem",
+                    borderRadius: "var(--radius-md)",
+                    border:
+                      editCategory === "requirement_change"
+                        ? "2px solid #a855f7"
+                        : "1px solid var(--border-color)",
+                    background:
+                      editCategory === "requirement_change"
+                        ? "rgba(168, 85, 247, 0.15)"
+                        : "var(--bg-surface-elevated)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    transition: "all 0.15s ease",
+                  }}
+                  onClick={() => setEditCategory("requirement_change")}
+                >
+                  <Icon name="gitBranch" size={16} color="#c084fc" />
+                  <div>
+                    <div style={{ color: "var(--text-main)", fontSize: "0.85rem", fontWeight: 700 }}>Requirement Change</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Scope or spec change</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="m-edit-title">Title *</label>
+              <input
+                id="m-edit-title"
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Brief summary of the issue..."
+                required
+              />
+            </div>
+
+            <div className="form-grid-2col">
+              <div className="form-group">
+                <label className="form-label" htmlFor="m-edit-sev">Severity Level</label>
+                <select
+                  id="m-edit-sev"
+                  value={editSeverity}
+                  onChange={(e) => setEditSeverity(e.target.value)}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="m-edit-status">QA Status</label>
+                <select
+                  id="m-edit-status"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                >
+                  {statuses.map((s) => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="m-edit-sheet">
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                  <Icon name="sheet" size={13} color="#10b981" />
+                  <span>Link a Sheet / Test Run URL (Optional)</span>
+                </span>
+              </label>
+              <input
+                id="m-edit-sheet"
+                type="url"
+                value={editSheetUrl}
+                onChange={(e) => setEditSheetUrl(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/... or Excel online URL"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="m-edit-desc">Reproduction Steps / Details</label>
+              <textarea
+                id="m-edit-desc"
+                rows={4}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Describe reproduction steps, expected behavior, or notes..."
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setEditBug(null)}
+                disabled={submittingEdit}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={submittingEdit}>
+                {submittingEdit ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* Modal: Quick Tally & Sheet Sync */}
       {tallyProject && (
@@ -890,6 +1377,35 @@ export function ManagerBugs() {
                   #{activeBug.project_id}
                 </div>
               </div>
+
+              {activeBug.sheet_url && (
+                <div>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-faint)", textTransform: "uppercase", fontWeight: 700 }}>
+                    Linked Sheet
+                  </span>
+                  <div style={{ marginTop: "0.3rem" }}>
+                    <a
+                      href={activeBug.sheet_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: "0.785rem",
+                        color: "#10b981",
+                        borderColor: "rgba(16, 185, 129, 0.4)",
+                        background: "rgba(16, 185, 129, 0.08)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                      }}
+                    >
+                      <Icon name="sheet" size={13} color="#10b981" />
+                      <span>Open Live Sheet</span>
+                      <Icon name="externalLink" size={11} color="#10b981" />
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

@@ -113,10 +113,10 @@ CREATE TABLE IF NOT EXISTS `bugs` (
   `description` TEXT NULL,
   `severity` VARCHAR(20) NOT NULL DEFAULT 'medium',
   `status` VARCHAR(30) NOT NULL DEFAULT 'open',
+  `category` VARCHAR(50) NOT NULL DEFAULT 'bug',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT `fk_bugs_project`
     FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`)
-
     ON DELETE CASCADE
     ON UPDATE CASCADE,
   CONSTRAINT `fk_bugs_reporter`
@@ -125,7 +125,8 @@ CREATE TABLE IF NOT EXISTS `bugs` (
     ON UPDATE CASCADE,
   INDEX `idx_bugs_project` (`project_id`),
   INDEX `idx_bugs_status` (`status`),
-  INDEX `idx_bugs_severity` (`severity`)
+  INDEX `idx_bugs_severity` (`severity`),
+  INDEX `idx_bugs_category` (`category`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------

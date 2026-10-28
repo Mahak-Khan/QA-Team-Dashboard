@@ -61,6 +61,12 @@ async def lifespan(app: FastAPI):
 
             if inspector.has_table("bugs"):
                 bug_cols = {c["name"]: c for c in inspector.get_columns("bugs")}
+                if "category" not in bug_cols:
+                    conn.execute(text("ALTER TABLE bugs ADD COLUMN category VARCHAR(50) NOT NULL DEFAULT 'bug'"))
+                if "sheet_url" not in bug_cols:
+                    conn.execute(text("ALTER TABLE bugs ADD COLUMN sheet_url VARCHAR(500) NULL"))
+                if "updated_at" not in bug_cols:
+                    conn.execute(text("ALTER TABLE bugs ADD COLUMN updated_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"))
                 # Ensure status and severity accommodate all statuses without truncation
                 conn.execute(text("ALTER TABLE bugs MODIFY COLUMN status VARCHAR(30) NOT NULL DEFAULT 'open'"))
                 conn.execute(text("ALTER TABLE bugs MODIFY COLUMN severity VARCHAR(30) NOT NULL DEFAULT 'medium'"))

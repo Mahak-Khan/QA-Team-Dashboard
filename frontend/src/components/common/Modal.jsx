@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icons";
 
-export function Modal({ isOpen, onClose, title, children, footer, maxWidth = "540px" }) {
+export function Modal({ isOpen, onClose, title, children, footer, maxWidth = "600px" }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") onClose();

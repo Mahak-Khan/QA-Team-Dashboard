@@ -356,14 +356,14 @@ export function ManagerProjects() {
                         project.status === "completed"
                           ? "var(--success-subtle)"
                           : project.status === "on_hold"
-                          ? "var(--warning-subtle)"
-                          : "var(--primary-subtle)",
+                            ? "var(--warning-subtle)"
+                            : "var(--primary-subtle)",
                       color:
                         project.status === "completed"
                           ? "var(--success)"
                           : project.status === "on_hold"
-                          ? "var(--warning)"
-                          : "var(--primary)",
+                            ? "var(--warning)"
+                            : "var(--primary)",
                       border: "1px solid var(--border-subtle)",
                       cursor: "pointer",
                       textTransform: "capitalize",

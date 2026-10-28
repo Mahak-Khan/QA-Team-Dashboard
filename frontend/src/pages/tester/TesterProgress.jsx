@@ -483,7 +483,7 @@ export function TesterProgress() {
               </p>
             ) : (
               <div className="table-scroll">
-                <table className="custom-table">
+                <table className="custom-table" style={{ minWidth: "850px" }}>
                   <thead>
                     <tr>
                       <th style={{ width: "18%" }}>Sprint Name</th>

@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useEffect, useState, useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { getTesterProjects } from "../../services/testerService";
 import { updateProjectMetrics } from "../../services/projectService";
-import { getBugs, createBug, updateBugStatus, getBugSummary } from "../../services/bugService";
+import { getBugs, createBug, updateBug, updateBugStatus, getBugSummary } from "../../services/bugService";
 import { Icon } from "../../components/common/Icons";
-import { StatusBadge, SeverityBadge } from "../../components/common/Badge";
+import { StatusBadge, SeverityBadge, IssueTypeBadge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { BarChart } from "../../components/charts/BarChart";
 import { useToast } from "../../context/ToastContext";
@@ -27,10 +27,21 @@ export function TesterBugs() {
   const [loading, setLoading] = useState(true);
   const [sheetViewMode, setSheetViewMode] = useState("cards");
 
-  // Filters for granular bugs
+  // Focus queue filter: "all_active" | "today" | "need_retest" | "critical"
+  const [focusFilter, setFocusFilter] = useState("all_active");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
+
+  // Quick Edit Modal
+  const [editBug, setEditBug] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSeverity, setEditSeverity] = useState("medium");
+  const [editStatus, setEditStatus] = useState("open");
+  const [editCategory, setEditCategory] = useState("bug");
+  const [editSheetUrl, setEditSheetUrl] = useState("");
+  const [submittingEdit, setSubmittingEdit] = useState(false);
 
   // Report Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,6 +50,7 @@ export function TesterBugs() {
   const [bugTitle, setBugTitle] = useState("");
   const [bugDescription, setBugDescription] = useState("");
   const [bugSeverity, setBugSeverity] = useState("medium");
+  const [reportSheetUrl, setReportSheetUrl] = useState("");
 
   // Inspect Modal
   const [inspectBug, setInspectBug] = useState(null);
@@ -177,8 +189,12 @@ export function TesterBugs() {
     setSelectedProjectId(newId);
     try {
       setLoading(true);
-      const bugData = await getBugs(newId ? Number(newId) : undefined);
+      const [bugData, newSumm] = await Promise.all([
+        getBugs(newId ? Number(newId) : undefined),
+        getBugSummary(undefined, newId ? Number(newId) : undefined),
+      ]);
       setBugs(Array.isArray(bugData) ? bugData : []);
+      if (newSumm) setBugSummary(newSumm);
     } catch {
       addToast("Failed to load bugs for selected project.", "error");
     } finally {
@@ -211,12 +227,14 @@ export function TesterBugs() {
         title: bugTitle.trim(),
         description: bugDescription.trim() || null,
         severity: bugSeverity,
+        sheet_url: reportSheetUrl.trim() || null,
       });
 
       addToast("Defect reported successfully!", "success");
       setBugTitle("");
       setBugDescription("");
       setBugSeverity("medium");
+      setReportSheetUrl("");
       setIsModalOpen(false);
 
       await handleProjectFilterChange(selectedProjectId || reportProjectId);
@@ -246,19 +264,117 @@ export function TesterBugs() {
     { label: "Critical", value: totalCriticalBugs, color: "#ef4444" },
   ];
 
-  const filteredBugs = bugs.filter((b) => {
-    const matchesSearch =
-      !search ||
-      (b.title || "").toLowerCase().includes(search.toLowerCase()) ||
-      (b.description || "").toLowerCase().includes(search.toLowerCase());
+  const isCreatedToday = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const today = new Date();
+    return (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  };
 
-    const matchesStatus = !statusFilter || b.status === statusFilter;
-    const matchesSeverity =
-      !severityFilter ||
-      (b.severity || "").toLowerCase() === severityFilter.toLowerCase();
+  const openEditModal = (bug) => {
+    setEditBug(bug);
+    setEditTitle(bug.title || "");
+    setEditDescription(bug.description || "");
+    setEditSeverity(bug.severity || "medium");
+    setEditStatus(bug.status || "open");
+    setEditCategory(bug.category || "bug");
+    setEditSheetUrl(bug.sheet_url || "");
+  };
 
-    return matchesSearch && matchesStatus && matchesSeverity;
-  });
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editBug) return;
+    if (!editTitle.trim()) {
+      addToast("Title is required", "error");
+      return;
+    }
+    setSubmittingEdit(true);
+    try {
+      const updated = await updateBug(editBug.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim() || null,
+        severity: editSeverity,
+        status: editStatus,
+        category: editCategory,
+        sheet_url: editSheetUrl.trim() || null,
+      });
+      addToast(`Defect #${editBug.id} updated successfully!`, "success");
+      setBugs((prev) =>
+        prev.map((b) => (b.id === editBug.id ? { ...b, ...updated } : b))
+      );
+      if (inspectBug && inspectBug.id === editBug.id) {
+        setInspectBug((prev) => ({ ...prev, ...updated }));
+      }
+      const newSummary = await getBugSummary(undefined, selectedProjectId ? Number(selectedProjectId) : undefined);
+      if (newSummary) setBugSummary(newSummary);
+      setEditBug(null);
+    } catch (err) {
+      addToast(err.response?.data?.detail || "Failed to update defect.", "error");
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
+  // Queue counts for active workspace (memoized for performance)
+  const todayCount = useMemo(
+    () => bugs.filter((b) => isCreatedToday(b.created_at)).length,
+    [bugs]
+  );
+  const needRetestCount = useMemo(
+    () => bugs.filter((b) => b.status === "need_retest").length,
+    [bugs]
+  );
+  const criticalActiveCount = useMemo(
+    () =>
+      bugs.filter(
+        (b) => (b.severity || "").toLowerCase() === "critical" && b.status !== "closed"
+      ).length,
+    [bugs]
+  );
+  const allActiveCount = useMemo(
+    () => bugs.filter((b) => b.status !== "closed").length,
+    [bugs]
+  );
+
+  // Automatically default filter to today if today has items, otherwise need_retest
+  useEffect(() => {
+    if (todayCount > 0) {
+      setFocusFilter("today");
+    } else if (needRetestCount > 0) {
+      setFocusFilter("need_retest");
+    }
+  }, [todayCount, needRetestCount]);
+
+  const focusedBugs = useMemo(() => {
+    return bugs.filter((b) => {
+      if (focusFilter === "today" && !isCreatedToday(b.created_at)) return false;
+      if (focusFilter === "need_retest" && b.status !== "need_retest") return false;
+      if (
+        focusFilter === "critical" &&
+        ((b.severity || "").toLowerCase() !== "critical" || b.status === "closed")
+      )
+        return false;
+      if (focusFilter === "all_active" && b.status === "closed") return false;
+
+      const matchesSearch =
+        !search ||
+        (b.title || "").toLowerCase().includes(search.toLowerCase()) ||
+        (b.description || "").toLowerCase().includes(search.toLowerCase());
+
+      const matchesStatus = !statusFilter || b.status === statusFilter;
+      const matchesSeverity =
+        !severityFilter ||
+        (b.severity || "").toLowerCase() === severityFilter.toLowerCase();
+      const matchesProject =
+        !selectedProjectId || String(b.project_id) === selectedProjectId;
+
+      return matchesSearch && matchesStatus && matchesSeverity && matchesProject;
+    });
+  }, [bugs, focusFilter, search, statusFilter, severityFilter, selectedProjectId]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
@@ -271,17 +387,23 @@ export function TesterBugs() {
           </p>
         </div>
 
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setReportProjectId(selectedProjectId || (projects[0]?.id ? String(projects[0].id) : ""));
-            setIsModalOpen(true);
-          }}
-          disabled={projects.length === 0}
-        >
-          <Icon name="plus" size={16} />
-          <span>Report Blocker</span>
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <Link to="/tester/bug-list" className="btn btn-secondary">
+            <Icon name="bugs" size={16} />
+            <span>View Reported Bug List</span>
+          </Link>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setReportProjectId(selectedProjectId || (projects[0]?.id ? String(projects[0].id) : ""));
+              setIsModalOpen(true);
+            }}
+            disabled={projects.length === 0}
+          >
+            <Icon name="plus" size={16} />
+            <span>Report Blocker</span>
+          </button>
+        </div>
       </div>
 
       {/* Visual Analytics & Defect Status Cards (Dual Grid) */}
@@ -729,7 +851,7 @@ export function TesterBugs() {
         ) : (
           /* Table View Alternative */
           <div className="table-scroll">
-            <table className="custom-table">
+            <table className="custom-table" style={{ minWidth: "860px" }}>
               <thead>
                 <tr>
                   <th style={{ width: "20%", whiteSpace: "nowrap", padding: "0.65rem 0.5rem" }}>Project</th>
@@ -918,31 +1040,141 @@ export function TesterBugs() {
         )}
       </div>
 
-      {/* Secondary Section: Logged Tickets Table Card */}
+      {/* Secondary Section: Today's Testing Workspace & Retest Queue */}
       <div className="card">
-        <div className="card-header">
+        <div className="card-header" style={{ alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
           <div className="card-title-group">
-            <h3>Individual Defect Tickets</h3>
-            <p className="card-subtitle">Detailed issues reported for developer investigation</p>
+            <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Icon name="clock" size={18} color="var(--primary)" />
+              <span>Today's Testing Workspace & Retest Queue</span>
+              <span
+                style={{
+                  fontSize: "0.78rem",
+                  padding: "0.15rem 0.55rem",
+                  borderRadius: "var(--radius-full)",
+                  background: "rgba(99, 102, 241, 0.15)",
+                  color: "var(--primary)",
+                  fontWeight: 600,
+                }}
+              >
+                {focusedBugs.length} in queue
+              </span>
+            </h3>
+            <p className="card-subtitle">
+              Focused test-run queue for validating developer fixes, logging today's findings, and verifying retests.
+            </p>
+          </div>
+
+          <Link
+            to="/tester/bug-list"
+            className="btn btn-secondary btn-sm"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              background: "rgba(168, 85, 247, 0.1)",
+              borderColor: "rgba(168, 85, 247, 0.35)",
+              color: "#c084fc",
+            }}
+          >
+            <Icon name="bugs" size={14} color="#c084fc" />
+            <span>Full Historical Archive ({bugs.length} total)</span>
+            <Icon name="arrowRight" size={12} color="#c084fc" />
+          </Link>
+        </div>
+
+        {/* Notice Banner */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0.75rem 1rem",
+            borderRadius: "var(--radius-md)",
+            background: "rgba(99, 102, 241, 0.06)",
+            border: "1px solid rgba(99, 102, 241, 0.2)",
+            margin: "0.5rem 0 1rem 0",
+            gap: "0.75rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <span style={{ color: "var(--primary)", display: "flex" }}>
+              <Icon name="shield" size={16} />
+            </span>
+            <span style={{ fontSize: "0.825rem", color: "var(--text-main)" }}>
+              <strong>Active Testing Queue:</strong> Showing today's findings & tickets awaiting your verification. Full multi-sprint history is in the <strong>Reported Bug List</strong>.
+            </span>
+          </div>
+
+          {/* Focus Queue Segmented Pills */}
+          <div style={{ display: "inline-flex", gap: "0.35rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className={`btn btn-sm ${focusFilter === "all_active" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFocusFilter("all_active")}
+              style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem" }}
+            >
+              All Active ({allActiveCount})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${focusFilter === "today" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFocusFilter("today")}
+              style={{
+                fontSize: "0.75rem",
+                padding: "0.25rem 0.65rem",
+                borderColor: focusFilter !== "today" && todayCount > 0 ? "rgba(168, 85, 247, 0.5)" : undefined,
+                color: focusFilter !== "today" && todayCount > 0 ? "#c084fc" : undefined,
+              }}
+            >
+              Today's Logs ({todayCount})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${focusFilter === "need_retest" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFocusFilter("need_retest")}
+              style={{
+                fontSize: "0.75rem",
+                padding: "0.25rem 0.65rem",
+                borderColor: focusFilter !== "need_retest" && needRetestCount > 0 ? "rgba(245, 158, 11, 0.5)" : undefined,
+                color: focusFilter !== "need_retest" && needRetestCount > 0 ? "#f59e0b" : undefined,
+              }}
+            >
+              Ready for Retest ({needRetestCount})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${focusFilter === "critical" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFocusFilter("critical")}
+              style={{
+                fontSize: "0.75rem",
+                padding: "0.25rem 0.65rem",
+                borderColor: focusFilter !== "critical" && criticalActiveCount > 0 ? "rgba(244, 63, 94, 0.5)" : undefined,
+                color: focusFilter !== "critical" && criticalActiveCount > 0 ? "#f43f5e" : undefined,
+              }}
+            >
+              Critical ({criticalActiveCount})
+            </button>
           </div>
         </div>
 
         {/* Filter and Search Bar */}
-        <div className="filter-search-container" style={{ margin: "0.5rem 0 1.25rem 0" }}>
-          <div className="search-input-wrapper">
+        <div className="filter-search-container" style={{ margin: "0.25rem 0 1.25rem 0", flexWrap: "wrap" }}>
+          <div className="search-input-wrapper" style={{ minWidth: 240, flex: "1 1 240px" }}>
             <span className="search-icon">
               <Icon name="search" size={16} />
             </span>
             <input
               type="text"
               className="search-input-field"
-              placeholder="Search defects by title or reproduction steps..."
+              placeholder="Search active tickets in queue..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
-          <div className="filters-cluster">
+          <div className="filters-cluster" style={{ flexWrap: "wrap" }}>
             <select
               value={selectedProjectId}
               onChange={(e) => handleProjectFilterChange(e.target.value)}
@@ -994,112 +1226,405 @@ export function TesterBugs() {
           </div>
         </div>
 
-        {filteredBugs.length === 0 ? (
-          <div className="empty-state-card" style={{ padding: "2rem" }}>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              {search || statusFilter || severityFilter
-                ? "No bugs match your current filter parameters."
-                : "No individual defect tickets logged. Bug counts are tracked via the attached live spreadsheets above."}
+        {focusedBugs.length === 0 ? (
+          <div className="empty-state-card" style={{ padding: "2.5rem 1.5rem" }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "rgba(16, 185, 129, 0.12)",
+                color: "#10b981",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 0.75rem auto",
+              }}
+            >
+              <Icon name="check" size={24} />
+            </div>
+            <h4 style={{ margin: "0 0 0.35rem 0", color: "var(--text-main)" }}>
+              {focusFilter === "today"
+                ? "No Defects Logged Today"
+                : focusFilter === "need_retest"
+                  ? "No Retests Waiting for Verification"
+                  : focusFilter === "critical"
+                    ? "No Active Critical Blockers"
+                    : "Active Queue is Empty"}
+            </h4>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", maxWidth: 420, margin: "0 auto 1rem auto" }}>
+              {focusFilter === "today"
+                ? "You haven't logged any new tickets today. Check attached spreadsheets or previous sprint records in the historical archive."
+                : "All priority tickets in this filter view are signed off."}
             </p>
+            <Link to="/tester/bug-list" className="btn btn-secondary btn-sm">
+              <span>View Full Historical Bug List</span>
+              <Icon name="arrowRight" size={13} />
+            </Link>
           </div>
         ) : (
           <div className="table-scroll">
-            <table className="custom-table">
+            <table className="custom-table" style={{ minWidth: "980px" }}>
               <thead>
                 <tr>
-                  <th style={{ width: "38%" }}>Defect Summary</th>
-                  <th style={{ width: "14%" }}>Severity</th>
-                  <th style={{ width: "16%" }}>QA Status</th>
-                  <th style={{ width: "18%" }}>Logged Date</th>
-                  <th style={{ width: "14%", textAlign: "right" }}>Action</th>
+                  <th style={{ minWidth: "240px", padding: "0.75rem 0.75rem" }}>Defect Summary</th>
+                  <th style={{ minWidth: "125px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>Type</th>
+                  <th style={{ minWidth: "100px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>Severity</th>
+                  <th style={{ minWidth: "135px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>QA Status</th>
+                  <th style={{ minWidth: "130px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>Linked Sheet</th>
+                  <th style={{ minWidth: "165px", padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>Reported Time</th>
+                  <th style={{ minWidth: "195px", textAlign: "right", padding: "0.75rem 0.75rem", whiteSpace: "nowrap" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredBugs.map((bug) => (
-                  <tr key={bug.id}>
-                    <td>
-                      <div
-                        style={{ cursor: "pointer" }}
-                        onClick={() => setInspectBug(bug)}
-                      >
-                        <strong
-                          style={{
-                            color: "var(--text-main)",
-                            fontSize: "0.95rem",
-                            display: "block",
-                            marginBottom: "0.2rem",
-                          }}
-                        >
-                          {bug.title}
-                        </strong>
+                {focusedBugs.map((bug) => {
+                  const todayLogged = isCreatedToday(bug.created_at);
+                  const isReadyForRetest = bug.status === "need_retest";
+
+                  return (
+                    <tr key={bug.id}>
+                      <td>
                         <div
+                          style={{ cursor: "pointer" }}
+                          onClick={() => setInspectBug(bug)}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-mono)",
+                                fontSize: "0.75rem",
+                                color: "var(--text-faint)",
+                                background: "var(--bg-surface-elevated)",
+                                padding: "0.15rem 0.4rem",
+                                borderRadius: "var(--radius-sm)",
+                              }}
+                            >
+                              #{bug.id}
+                            </span>
+                            <strong
+                              style={{
+                                color: "var(--text-main)",
+                                fontSize: "0.925rem",
+                                display: "block",
+                              }}
+                            >
+                              {bug.title}
+                            </strong>
+                          </div>
+                          {bug.description && (
+                            <div
+                              style={{
+                                fontSize: "0.785rem",
+                                color: "var(--text-muted)",
+                                maxWidth: 420,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                marginTop: "0.2rem",
+                                paddingLeft: "0.2rem",
+                              }}
+                            >
+                              {bug.description}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td>
+                        <IssueTypeBadge category={bug.category} />
+                      </td>
+
+                      <td>
+                        <SeverityBadge severity={bug.severity} />
+                      </td>
+
+                      <td>
+                        <select
+                          value={bug.status}
+                          onChange={(e) => handleStatusChange(bug.id, e.target.value)}
                           style={{
+                            padding: "0.28rem 0.55rem",
                             fontSize: "0.785rem",
-                            color: "var(--text-muted)",
-                            maxWidth: 420,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            fontWeight: 600,
+                            borderRadius: "var(--radius-sm)",
+                            background: "var(--bg-surface-elevated)",
+                            color: "var(--text-main)",
+                            border: "1px solid var(--border-color)",
+                            cursor: "pointer",
+                            width: "auto",
+                            maxWidth: "100%",
                           }}
                         >
-                          {bug.description || "No description provided."}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <SeverityBadge severity={bug.severity} />
-                    </td>
-                    <td>
-                      <select
-                        value={bug.status}
-                        onChange={(e) => handleStatusChange(bug.id, e.target.value)}
-                        style={{
-                          padding: "0.3rem 0.6rem",
-                          fontSize: "0.785rem",
-                          fontWeight: 600,
-                          borderRadius: "var(--radius-sm)",
-                          background: "var(--bg-surface-elevated)",
-                          color: "var(--text-main)",
-                          border: "1px solid var(--border-color)",
-                          cursor: "pointer",
-                          width: "auto",
-                          maxWidth: "100%",
-                        }}
-                      >
-                        {statuses.map((s) => (
-                          <option key={s.key} value={s.key}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      {bug.created_at ? (
-                        <div style={{ fontSize: "0.785rem", color: "var(--text-faint)", lineHeight: 1.3 }}>
-                          <div>{new Date(bug.created_at).toLocaleDateString()}</div>
-                          <div style={{ fontSize: "0.7rem", opacity: 0.8 }}>
-                            {new Date(bug.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {statuses.map((s) => (
+                            <option key={s.key} value={s.key}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      <td style={{ padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>
+                        {bug.sheet_url ? (
+                          <a
+                            href={bug.sheet_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary btn-sm"
+                            style={{
+                              fontSize: "0.72rem",
+                              padding: "0.2rem 0.45rem",
+                              color: "#10b981",
+                              borderColor: "rgba(16, 185, 129, 0.4)",
+                              background: "rgba(16, 185, 129, 0.08)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.3rem",
+                            }}
+                            title="Open linked Google Sheet / Excel in new tab"
+                          >
+                            <Icon name="sheet" size={12} color="#10b981" />
+                            <span>Sheet</span>
+                            <Icon name="externalLink" size={10} color="#10b981" />
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-faint)" }}>—</span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: "0.75rem 0.6rem", whiteSpace: "nowrap" }}>
+                        {bug.created_at ? (
+                          <div style={{ fontSize: "0.8rem", color: "var(--text-main)", lineHeight: 1.35, whiteSpace: "nowrap" }}>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", whiteSpace: "nowrap" }}>
+                              {todayLogged && (
+                                <span
+                                  style={{
+                                    fontSize: "0.68rem",
+                                    padding: "0.12rem 0.4rem",
+                                    borderRadius: "var(--radius-sm)",
+                                    background: "rgba(16, 185, 129, 0.15)",
+                                    color: "#10b981",
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                    display: "inline-block",
+                                    letterSpacing: "0.04em",
+                                  }}
+                                >
+                                  TODAY
+                                </span>
+                              )}
+                              <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                                {new Date(bug.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: "0.72rem", color: "var(--text-faint)", marginTop: "0.15rem", whiteSpace: "nowrap" }}>
+                              {new Date(bug.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </div>
                           </div>
+                        ) : (
+                          <span style={{ fontSize: "0.785rem", color: "var(--text-faint)" }}>—</span>
+                        )}
+                      </td>
+
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap", padding: "0.75rem 0.75rem" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", whiteSpace: "nowrap" }}>
+                          {isReadyForRetest && (
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => handleStatusChange(bug.id, "closed")}
+                              style={{
+                                fontSize: "0.72rem",
+                                padding: "0.22rem 0.55rem",
+                                background: "rgba(16, 185, 129, 0.15)",
+                                color: "#10b981",
+                                border: "1px solid rgba(16, 185, 129, 0.4)",
+                                fontWeight: 700,
+                                whiteSpace: "nowrap",
+                                flexShrink: 0,
+                              }}
+                              title="1-Click: Verify fix & Close Defect"
+                            >
+                              <Icon name="check" size={11} />
+                              <span>Pass & Close</span>
+                            </button>
+                          )}
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openEditModal(bug)}
+                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem", whiteSpace: "nowrap", flexShrink: 0 }}
+                            title="Edit defect steps"
+                          >
+                            <Icon name="edit" size={12} />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setInspectBug(bug)}
+                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.55rem", whiteSpace: "nowrap", flexShrink: 0 }}
+                          >
+                            Inspect
+                          </button>
                         </div>
-                      ) : (
-                        <span style={{ fontSize: "0.785rem", color: "var(--text-faint)" }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => setInspectBug(bug)}
-                      >
-                        Inspect
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Modal: Quick Edit Defect for Tester */}
+      {editBug && (
+        <Modal
+          isOpen={Boolean(editBug)}
+          onClose={() => !submittingEdit && setEditBug(null)}
+          title={`Edit Defect #${editBug.id}`}
+        >
+          <form onSubmit={handleSaveEdit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div className="form-group">
+              <label className="form-label">Classification / Issue Type</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div
+                  style={{
+                    padding: "0.75rem 0.85rem",
+                    borderRadius: "var(--radius-md)",
+                    border:
+                      editCategory === "bug"
+                        ? "2px solid #f43f5e"
+                        : "1px solid var(--border-color)",
+                    background:
+                      editCategory === "bug"
+                        ? "rgba(244, 63, 94, 0.12)"
+                        : "var(--bg-surface-elevated)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    transition: "all 0.15s ease",
+                  }}
+                  onClick={() => setEditCategory("bug")}
+                >
+                  <Icon name="bugs" size={16} color="#f43f5e" />
+                  <div>
+                    <div style={{ color: "var(--text-main)", fontSize: "0.85rem", fontWeight: 700 }}>Software Defect</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Code bug or glitch</div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "0.75rem 0.85rem",
+                    borderRadius: "var(--radius-md)",
+                    border:
+                      editCategory === "requirement_change"
+                        ? "2px solid #a855f7"
+                        : "1px solid var(--border-color)",
+                    background:
+                      editCategory === "requirement_change"
+                        ? "rgba(168, 85, 247, 0.15)"
+                        : "var(--bg-surface-elevated)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    transition: "all 0.15s ease",
+                  }}
+                  onClick={() => setEditCategory("requirement_change")}
+                >
+                  <Icon name="gitBranch" size={16} color="#c084fc" />
+                  <div>
+                    <div style={{ color: "var(--text-main)", fontSize: "0.85rem", fontWeight: 700 }}>Requirement Change</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Scope or spec change</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="t-edit-title">Title *</label>
+              <input
+                id="t-edit-title"
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Brief summary of the issue..."
+                required
+              />
+            </div>
+
+            <div className="form-grid-2col">
+              <div className="form-group">
+                <label className="form-label" htmlFor="t-edit-sev">Severity Level</label>
+                <select
+                  id="t-edit-sev"
+                  value={editSeverity}
+                  onChange={(e) => setEditSeverity(e.target.value)}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="t-edit-status">QA Status</label>
+                <select
+                  id="t-edit-status"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                >
+                  {statuses.map((s) => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="t-edit-sheet">
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                  <Icon name="sheet" size={13} color="#10b981" />
+                  <span>Link a Sheet / Test Run URL (Optional)</span>
+                </span>
+              </label>
+              <input
+                id="t-edit-sheet"
+                type="url"
+                value={editSheetUrl}
+                onChange={(e) => setEditSheetUrl(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/... or Excel online URL"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="t-edit-desc">Reproduction Steps / Details</label>
+              <textarea
+                id="t-edit-desc"
+                rows={4}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Describe reproduction steps, expected behavior, or notes..."
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setEditBug(null)}
+                disabled={submittingEdit}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={submittingEdit}>
+                {submittingEdit ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* Modal: Quick Tally & Sheet Sync */}
       {tallyProject && (
@@ -1248,25 +1773,41 @@ export function TesterBugs() {
           </>
         }
       >
-        <form onSubmit={handleReportBug} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div className="form-group-block">
-            <label htmlFor="b-proj">Target Project *</label>
-            <select
-              id="b-proj"
-              value={reportProjectId}
-              onChange={(e) => setReportProjectId(e.target.value)}
-              required
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+        <form onSubmit={handleReportBug} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <div className="form-grid-2col">
+            <div className="form-group">
+              <label className="form-label" htmlFor="b-proj">Target Project *</label>
+              <select
+                id="b-proj"
+                value={reportProjectId}
+                onChange={(e) => setReportProjectId(e.target.value)}
+                required
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="b-sev">Severity Rating</label>
+              <select
+                id="b-sev"
+                value={bugSeverity}
+                onChange={(e) => setBugSeverity(e.target.value)}
+              >
+                <option value="low">Low (Minor cosmetic issue)</option>
+                <option value="medium">Medium (Standard defect)</option>
+                <option value="high">High (Major function failure)</option>
+                <option value="critical">Critical (Crash / Data loss / Blocker)</option>
+              </select>
+            </div>
           </div>
 
-          <div className="form-group-block">
-            <label htmlFor="b-title">Bug Title *</label>
+          <div className="form-group">
+            <label className="form-label" htmlFor="b-title">Bug Title *</label>
             <input
               id="b-title"
               type="text"
@@ -1278,22 +1819,24 @@ export function TesterBugs() {
             />
           </div>
 
-          <div className="form-group-block">
-            <label htmlFor="b-sev">Severity Rating</label>
-            <select
-              id="b-sev"
-              value={bugSeverity}
-              onChange={(e) => setBugSeverity(e.target.value)}
-            >
-              <option value="low">Low (Minor cosmetic issue)</option>
-              <option value="medium">Medium (Standard defect)</option>
-              <option value="high">High (Major function failure)</option>
-              <option value="critical">Critical (Crash / Data loss / Blocker)</option>
-            </select>
+          <div className="form-group">
+            <label className="form-label" htmlFor="b-sheet">
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                <Icon name="sheet" size={13} color="#10b981" />
+                <span>Link a Sheet / Test Run URL (Optional)</span>
+              </span>
+            </label>
+            <input
+              id="b-sheet"
+              type="url"
+              placeholder="https://docs.google.com/spreadsheets/d/... or Excel online URL"
+              value={reportSheetUrl}
+              onChange={(e) => setReportSheetUrl(e.target.value)}
+            />
           </div>
 
-          <div className="form-group-block">
-            <label htmlFor="b-desc">Description & Steps to Reproduce</label>
+          <div className="form-group">
+            <label className="form-label" htmlFor="b-desc">Description & Steps to Reproduce</label>
             <textarea
               id="b-desc"
               rows={4}
@@ -1369,6 +1912,35 @@ export function TesterBugs() {
                   {inspectBug.created_at ? new Date(inspectBug.created_at).toLocaleString() : "—"}
                 </div>
               </div>
+
+              {inspectBug.sheet_url && (
+                <div>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-faint)", textTransform: "uppercase", fontWeight: 700, display: "block" }}>
+                    Linked Sheet
+                  </span>
+                  <div style={{ marginTop: "0.3rem" }}>
+                    <a
+                      href={inspectBug.sheet_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: "0.785rem",
+                        color: "#10b981",
+                        borderColor: "rgba(16, 185, 129, 0.4)",
+                        background: "rgba(16, 185, 129, 0.08)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                      }}
+                    >
+                      <Icon name="sheet" size={13} color="#10b981" />
+                      <span>Open Live Sheet</span>
+                      <Icon name="externalLink" size={11} color="#10b981" />
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

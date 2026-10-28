@@ -12,12 +12,14 @@ const ManagerProjects = lazy(() => import("./pages/manager/ManagerProjects"));
 const ManagerTeam = lazy(() => import("./pages/manager/ManagerTeam"));
 const ManagerAssignments = lazy(() => import("./pages/manager/ManagerAssignments"));
 const ManagerBugs = lazy(() => import("./pages/manager/ManagerBugs"));
+const ManagerBugList = lazy(() => import("./pages/manager/ManagerBugList"));
 
 // Tester Pages (Lazy-loaded chunks for optimal performance)
 const TesterOverview = lazy(() => import("./pages/tester/TesterOverview"));
 const TesterProjects = lazy(() => import("./pages/tester/TesterProjects"));
 const TesterProgress = lazy(() => import("./pages/tester/TesterProgress"));
 const TesterBugs = lazy(() => import("./pages/tester/TesterBugs"));
+const TesterBugList = lazy(() => import("./pages/tester/TesterBugList"));
 
 function isTokenExpired(token) {
   if (!token) return true;
@@ -69,6 +71,8 @@ function App() {
             <Route path="team" element={<ManagerTeam />} />
             <Route path="assignments" element={<ManagerAssignments />} />
             <Route path="bugs" element={<ManagerBugs />} />
+            <Route path="bug-list" element={<ManagerBugList />} />
+            <Route path="reported-bugs" element={<ManagerBugList />} />
           </Route>
 
           {/* Tester Workspace Sub-routes */}
@@ -84,6 +88,8 @@ function App() {
             <Route path="projects" element={<TesterProjects />} />
             <Route path="progress" element={<TesterProgress />} />
             <Route path="bugs" element={<TesterBugs />} />
+            <Route path="bug-list" element={<TesterBugList />} />
+            <Route path="reported-bugs" element={<TesterBugList />} />
           </Route>
 
           {/* Fallback to Login */}

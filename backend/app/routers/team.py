@@ -72,7 +72,8 @@ def get_testers(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    manager_only(current_user)
+    if current_user.role not in ("manager", "tester"):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     return db.query(User).filter(
         User.role == "tester",

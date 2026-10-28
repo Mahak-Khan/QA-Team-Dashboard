@@ -2,6 +2,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import case, func
 
 from app.database import get_db
 from app.models.project import Project
@@ -126,7 +127,36 @@ def get_projects(
     if project_id is not None:
         query = query.filter(Project.id == project_id)
 
-    return query.distinct().order_by(Project.id.desc()).all()
+    projects = query.distinct().order_by(Project.id.desc()).all()
+    proj_ids = [p.id for p in projects]
+    if proj_ids:
+        # Single ultra-fast SQL aggregation for all projects at once
+        stats = (
+            db.query(
+                Bug.project_id,
+                func.sum(case((Bug.status == "open", 1), else_=0)).label("open"),
+                func.sum(case((Bug.status == "need_retest", 1), else_=0)).label("need_retest"),
+                func.sum(case((Bug.status == "retested", 1), else_=0)).label("retested"),
+                func.sum(case((Bug.status == "closed", 1), else_=0)).label("closed"),
+                func.sum(case((func.lower(Bug.severity) == "critical", 1), else_=0)).label("critical"),
+                func.count(Bug.id).label("total"),
+            )
+            .filter(Bug.project_id.in_(proj_ids))
+            .group_by(Bug.project_id)
+            .all()
+        )
+        stat_map = {row.project_id: row for row in stats}
+        for p in projects:
+            s = stat_map.get(p.id)
+            p.open_bugs = int(s.open or 0) if s else 0
+            p.need_retest_bugs = int(s.need_retest or 0) if s else 0
+            p.retested_bugs = int(s.retested or 0) if s else 0
+            p.closed_bugs = int(s.closed or 0) if s else 0
+            p.fixed_bugs = p.closed_bugs
+            p.critical_bugs = int(s.critical or 0) if s else 0
+            p.total_bugs = int(s.total or 0) if s else 0
+
+    return projects
 
 
 
@@ -365,6 +395,30 @@ def save_project_update(
     }
 
 
+def populate_project_dynamic_counts(project: Project, db: Session) -> Project:
+    s = (
+        db.query(
+            func.sum(case((Bug.status == "open", 1), else_=0)).label("open"),
+            func.sum(case((Bug.status == "need_retest", 1), else_=0)).label("need_retest"),
+            func.sum(case((Bug.status == "retested", 1), else_=0)).label("retested"),
+            func.sum(case((Bug.status == "closed", 1), else_=0)).label("closed"),
+            func.sum(case((func.lower(Bug.severity) == "critical", 1), else_=0)).label("critical"),
+            func.count(Bug.id).label("total"),
+        )
+        .filter(Bug.project_id == project.id)
+        .first()
+    )
+    if s:
+        project.open_bugs = int(s.open or 0)
+        project.need_retest_bugs = int(s.need_retest or 0)
+        project.retested_bugs = int(s.retested or 0)
+        project.closed_bugs = int(s.closed or 0)
+        project.fixed_bugs = project.closed_bugs
+        project.critical_bugs = int(s.critical or 0)
+        project.total_bugs = int(s.total or 0)
+    return project
+
+
 @router.patch("/{project_id}/sheet-metrics", response_model=ProjectResponse)
 @router.put("/{project_id}/sheet-metrics", response_model=ProjectResponse)
 def update_project_metrics(
@@ -414,9 +468,26 @@ def update_project_metrics(
         )
 
     project.last_sheet_sync = datetime.utcnow()
+
+    # Notify managers when a tester updates project defect metrics or connects a sheet
+    if current_user.role == "tester":
+        tester_name = current_user.name if current_user and current_user.name else "QA Tester"
+        managers = db.query(User).filter(User.role == "manager", User.is_active.is_(True)).all()
+        for mgr in managers:
+            if mgr.id != current_user.id:
+                notif = Notification(
+                    user_id=mgr.id,
+                    project_id=project.id,
+                    title=f"Project Metrics Updated: {project.name}",
+                    message=f"{tester_name} updated QA defect metrics and live sheet for '{project.name}' (Open: {project.open_bugs}, Need Retest: {project.need_retest_bugs}, Closed: {project.closed_bugs}).",
+                    type="metrics_updated",
+                    is_read=False,
+                )
+                db.add(notif)
+
     db.commit()
     db.refresh(project)
-    return project
+    return populate_project_dynamic_counts(project, db)
 
 
 
@@ -459,8 +530,34 @@ def get_all_project_progress(
             if upd.assignment_id not in latest_update_map:
                 latest_update_map[upd.assignment_id] = upd
 
+        # Single grouped query for all projects in progress
+        proj_ids = list({p.id for _a, p, _u in assignment_rows})
+        stats = (
+            db.query(
+                Bug.project_id,
+                func.sum(case((Bug.status == "open", 1), else_=0)).label("open"),
+                func.sum(case((Bug.status == "need_retest", 1), else_=0)).label("need_retest"),
+                func.sum(case((Bug.status == "retested", 1), else_=0)).label("retested"),
+                func.sum(case((Bug.status == "closed", 1), else_=0)).label("closed"),
+                func.sum(case((func.lower(Bug.severity) == "critical", 1), else_=0)).label("critical"),
+                func.count(Bug.id).label("total"),
+            )
+            .filter(Bug.project_id.in_(proj_ids))
+            .group_by(Bug.project_id)
+            .all()
+        )
+        stat_map = {row.project_id: row for row in stats}
+
         for assignment, project, tester in assignment_rows:
             latest_update = latest_update_map.get(assignment.id)
+            s = stat_map.get(project.id)
+            p_open = int(s.open or 0) if s else 0
+            p_need_retest = int(s.need_retest or 0) if s else 0
+            p_retested = int(s.retested or 0) if s else 0
+            p_closed = int(s.closed or 0) if s else 0
+            p_crit = int(s.critical or 0) if s else 0
+            p_total = int(s.total or 0) if s else 0
+
             result.append({
                 "project_id": project.id,
                 "project_name": project.name,
@@ -473,26 +570,15 @@ def get_all_project_progress(
                 "progress": latest_update.progress if latest_update else 0,
                 "remarks": latest_update.remarks if latest_update else "",
                 "excel_sheet_url": (
-                    latest_update.excel_sheet_url if latest_update else project.excel_sheet_url
+                    latest_update.excel_sheet_url if latest_update and latest_update.excel_sheet_url else project.excel_sheet_url
                 ),
-                "open_bugs": latest_update.open_bugs if latest_update else project.open_bugs,
-                "need_retest_bugs": (
-                    latest_update.need_retest_bugs if latest_update else project.need_retest_bugs
-                ),
-                "retested_bugs": (
-                    latest_update.retested_bugs if latest_update else project.retested_bugs
-                ),
-                "closed_bugs": (
-                    latest_update.closed_bugs
-                    if latest_update
-                    else (project.closed_bugs or project.fixed_bugs)
-                ),
-                "fixed_bugs": (
-                    latest_update.fixed_bugs
-                    if latest_update
-                    else (project.fixed_bugs or project.closed_bugs)
-                ),
-                "critical_bugs": latest_update.critical_bugs if latest_update else project.critical_bugs,
+                "open_bugs": p_open,
+                "need_retest_bugs": p_need_retest,
+                "retested_bugs": p_retested,
+                "closed_bugs": p_closed,
+                "fixed_bugs": p_closed,
+                "critical_bugs": p_crit,
+                "total_bugs": p_total,
                 "updated_at": (
                     latest_update.updated_at.isoformat()
                     if latest_update and latest_update.updated_at
@@ -504,6 +590,7 @@ def get_all_project_progress(
     if project_id is not None and not result and tester_id is None:
         standalone_project = db.query(Project).filter(Project.id == project_id).first()
         if standalone_project:
+            standalone_project = populate_project_dynamic_counts(standalone_project, db)
             result.append({
                 "project_id": standalone_project.id,
                 "project_name": standalone_project.name,
@@ -517,9 +604,10 @@ def get_all_project_progress(
                 "open_bugs": standalone_project.open_bugs,
                 "need_retest_bugs": standalone_project.need_retest_bugs,
                 "retested_bugs": standalone_project.retested_bugs,
-                "closed_bugs": standalone_project.closed_bugs or standalone_project.fixed_bugs,
-                "fixed_bugs": standalone_project.fixed_bugs or standalone_project.closed_bugs,
+                "closed_bugs": standalone_project.closed_bugs,
+                "fixed_bugs": standalone_project.closed_bugs,
                 "critical_bugs": standalone_project.critical_bugs,
+                "total_bugs": standalone_project.total_bugs,
                 "updated_at": None,
             })
 
@@ -544,7 +632,7 @@ def get_project_by_id(
         if not assignment:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    return project
+    return populate_project_dynamic_counts(project, db)
 
 
 @router.patch("/{project_id}/status", response_model=ProjectResponse)
@@ -565,7 +653,7 @@ def update_project_status(
     project.status = payload.status
     db.commit()
     db.refresh(project)
-    return project
+    return populate_project_dynamic_counts(project, db)
 
 
 @router.get("/{project_id}/updates")

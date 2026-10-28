@@ -1,0 +1,257 @@
+%PDF-1.4
+1 0 obj
+<<
+  /Type /Catalog
+  /Pages 2 0 R
+>>
+endobj
+2 0 obj
+<<
+  /Type /Pages
+  /Kids [3 0 R 5 0 R 7 0 R]
+  /Count 3
+>>
+endobj
+3 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /MediaBox [0 0 612 792]
+  /Resources <<
+    /Font <<
+      /F1 9 0 R
+      /F2 10 0 R
+    >>
+  >>
+  /Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+  /Length 1450
+>>
+stream
+BT
+/F1 20 Tf
+50 740 Td
+(QA Team Dashboard - Application & Data Flow) Tj
+/F2 10 Tf
+0 -18 Td
+(System Architecture, Manager & Tester Roles, and Data Flow Specification) Tj
+0 -25 Td
+/F1 13 Tf
+(1. SYSTEM OVERVIEW & ARCHITECTURE) Tj
+/F2 10 Tf
+0 -16 Td
+(The QA Team Dashboard is a centralized platform for managing QA testing projects,) Tj
+0 -14 Td
+(defect tracking, and daily sprint progress updates under a Single Source of Truth.) Tj
+0 -18 Td
+(- Role-Based Access: Dedicated portals for Managers [/manager/*] and Testers [/tester/*].) Tj
+0 -14 Td
+(- Decoupled Sheets: Google Sheets and Cloud Excel workbooks are stored purely as reference) Tj
+0 -14 Td
+(  links. Testers click "Live Sheet" to access workbooks without manual count inputs.) Tj
+0 -14 Td
+(- Single Source of Truth: All defect metrics [Total, Open, Retest, Retested, Closed, Crit]) Tj
+0 -14 Td
+(  are dynamically aggregated directly from the reported bug tickets in the database.) Tj
+0 -25 Td
+/F1 13 Tf
+(2. MANAGER PERSONA - MODULES & WORKFLOW) Tj
+/F2 10 Tf
+0 -16 Td
+(A. Manager Overview [/manager/overview]:) Tj
+0 -14 Td
+(   Executive cockpit with high-level KPI badges, defect distribution charts by project,) Tj
+0 -14 Td
+(   recent sprint activity feeds from testers, and urgent blocker notifications.) Tj
+0 -16 Td
+(B. Projects Management [/manager/projects]:) Tj
+0 -14 Td
+(   Create new QA projects, assign/unassign QA testers, attach/update live test sheet) Tj
+0 -14 Td
+(   reference links, and safely delete completed project workspaces.) Tj
+0 -16 Td
+(C. Bugs & Focus Queue [/manager/bugs]:) Tj
+0 -14 Td
+(   Live Defect Overview table with quick Live Sheet launchers, and Today's Active Focus) Tj
+0 -14 Td
+(   Queue highlighting defects logged today, pending retests, and critical escalations.) Tj
+0 -16 Td
+(D. Master Bug List [/bugs/list]:) Tj
+0 -14 Td
+(   Historical defect archive with Category Toggle [Bugs vs. Req Changes], multi-filters) Tj
+0 -14 Td
+(   [Project, Tester, Severity, Status], full-text search, and ticket deletion.) Tj
+0 -16 Td
+(E. Team Management [/manager/team]:) Tj
+0 -14 Td
+(   Add new tester accounts, toggle active/inactive status, and monitor workloads.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /MediaBox [0 0 612 792]
+  /Resources <<
+    /Font <<
+      /F1 9 0 R
+      /F2 10 0 R
+    >>
+  >>
+  /Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+  /Length 1380
+>>
+stream
+BT
+/F1 13 Tf
+50 740 Td
+(3. TESTER PERSONA - MODULES & WORKFLOW) Tj
+/F2 10 Tf
+0 -18 Td
+(A. Tester Overview [/tester/overview]:) Tj
+0 -14 Td
+(   Personal workstation showing assigned projects, personal defect logging metrics) Tj
+0 -14 Td
+(   [Open, Need Retest, Retested, Closed], and shortcuts to live test sheets.) Tj
+0 -16 Td
+(B. My Assigned Projects [/tester/projects]:) Tj
+0 -14 Td
+(   Focused view of projects designated to this tester. Features a "Live Sheet" button) Tj
+0 -14 Td
+(   to open Google Sheets/Excel in a new tab, and an "Edit Link" button to update URLs.) Tj
+0 -16 Td
+(C. Defect Workbench [/tester/bugs]:) Tj
+0 -14 Td
+(   Core test execution page. Testers select an assigned project, log new bugs or) Tj
+0 -14 Td
+(   requirement changes, advance defect status during retesting, and view sprint charts.) Tj
+0 -14 Td
+(   *Critical Bug Escalation: Reporting a critical bug immediately alerts all managers.) Tj
+0 -16 Td
+(D. Daily Progress Submission [/tester/progress]:) Tj
+0 -14 Td
+(   Submit daily sprint milestones [Sprint Name, % Progress, Remarks/Blockers].) Tj
+0 -14 Td
+(   Instantly notifies the project manager and updates executive overview dashboards.) Tj
+0 -16 Td
+(E. Reported Bug List [/bugs/list]:) Tj
+0 -14 Td
+(   Searchable historical audit view across all reported tickets with category toggle.) Tj
+0 -25 Td
+/F1 13 Tf
+(4. END-TO-END DATA FLOW & LIFECYCLE) Tj
+/F2 10 Tf
+0 -16 Td
+(Step 1: Project Provisioning -> Manager creates project and assigns tester[s].) Tj
+0 -14 Td
+(Step 2: Test Execution -> Tester opens assigned project, clicks Live Sheet to review test run,) Tj
+0 -14 Td
+(        and logs bug tickets in the dashboard. If Critical, manager receives alert.) Tj
+0 -14 Td
+(Step 3: Verification Cycle -> Tester transitions ticket: Open -> Need Retest -> Retested -> Closed.) Tj
+0 -14 Td
+(Step 4: Daily Sync -> Tester logs daily % progress; manager dashboard updates in real-time.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /MediaBox [0 0 612 792]
+  /Resources <<
+    /Font <<
+      /F1 9 0 R
+      /F2 10 0 R
+    >>
+  >>
+  /Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+  /Length 1150
+>>
+stream
+BT
+/F1 13 Tf
+50 740 Td
+(5. MATHEMATICAL BALANCE & STATUS MATRIX) Tj
+/F2 10 Tf
+0 -20 Td
+(Status Lifecycle Definition & Current Verification Formula:) Tj
+0 -16 Td
+(- Open [9]: Defects discovered by QA; awaiting developer triage and code fix.) Tj
+0 -14 Td
+(- Need Retest [2]: Developer deployed fix to test environment; ready for QA validation.) Tj
+0 -14 Td
+(- Retested [5]: QA engineer validated fix in test environment.) Tj
+0 -14 Td
+(- Closed [3]: Verified working and signed-off by QA team.) Tj
+0 -14 Td
+(- Critical [1]: Highest severity blocker tracked as an orthogonal severity dimension.) Tj
+0 -18 Td
+(Mathematical Equality Guarantee:) Tj
+0 -14 Td
+(Total Tracked [19] = Open [9] + Need Retest [2] + Retested [5] + Closed [3]) Tj
+0 -25 Td
+/F1 13 Tf
+(6. SUMMARY OF TECHNICAL INTEGRATIONS) Tj
+/F2 10 Tf
+0 -16 Td
+(- Frontend: React 19 SPA with Vite HMR, Glassmorphic CSS Design System.) Tj
+0 -14 Td
+(- Backend: FastAPI REST API with SQLAlchemy ORM and JWT Authentication.) Tj
+0 -14 Td
+(- Query Engine: Single-roundtrip SQL aggregations with indexed B-tree lookups.) Tj
+0 -14 Td
+(- Spreadsheets: Decoupled URL reference pointers with zero manual count entry required.) Tj
+0 -30 Td
+/F1 10 Tf
+(Generated for QA Team Dashboard Architecture & Flow Review.) Tj
+ET
+endstream
+endobj
+9 0 obj
+<<
+  /Type /Font
+  /Subtype /Type1
+  /BaseFont /Helvetica-Bold
+>>
+endobj
+10 0 obj
+<<
+  /Type /Font
+  /Subtype /Type1
+  /BaseFont /Helvetica
+>>
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000125 00000 n 
+0000000282 00000 n 
+0000001784 00000 n 
+0000001941 00000 n 
+0000003373 00000 n 
+0000003530 00000 n 
+0000004732 00000 n 
+0000004812 00000 n 
+trailer
+<<
+  /Size 11
+  /Root 1 0 R
+>>
+startxref
+4887
+%%EOF

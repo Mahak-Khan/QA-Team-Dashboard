@@ -115,14 +115,14 @@ export function NotificationBell({ role = "tester" }) {
     }
   };
 
-  // Poll for new notifications every 20 seconds only when tab is active/visible
+  // Poll for new notifications every 8 seconds only when tab is active/visible
   useEffect(() => {
     fetchUnreadCount();
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         fetchUnreadCount();
       }
-    }, 20000);
+    }, 8000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {

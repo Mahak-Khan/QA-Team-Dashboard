@@ -15,14 +15,16 @@ export function Sidebar({ role = "manager" }) {
     { label: "Projects", to: "/manager/projects", icon: "projects" },
     { label: "Team Members", to: "/manager/team", icon: "team" },
     { label: "Assignments", to: "/manager/assignments", icon: "assignment" },
-    { label: "Bug Tracking", to: "/manager/bugs", icon: "bugs" },
+    { label: "Reported Bug List", to: "/manager/bug-list", icon: "bugs" },
+    { label: "Sheet Defect Matrix", to: "/manager/bugs", icon: "sheet" },
   ];
 
   const testerNavItems = [
     { label: "Overview", to: "/tester", icon: "dashboard", end: true },
     { label: "My Projects", to: "/tester/projects", icon: "projects" },
     { label: "Sprint Progress", to: "/tester/progress", icon: "progress" },
-    { label: "Project Bugs", to: "/tester/bugs", icon: "bugs" },
+    { label: "Reported Bug List", to: "/tester/bug-list", icon: "bugs" },
+    { label: "Sheet Defect Sync", to: "/tester/bugs", icon: "sheet" },
   ];
 
   const navItems = role === "manager" ? managerNavItems : testerNavItems;

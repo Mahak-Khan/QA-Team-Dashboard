@@ -37,3 +37,13 @@ export function SeverityBadge({ severity }) {
     </Badge>
   );
 }
+
+export function IssueTypeBadge({ category }) {
+  const isReqChange = category === "requirement_change" || category === "requirement";
+  return (
+    <Badge variant={isReqChange ? "requirement_change" : "bug"}>
+      {isReqChange ? "Requirement Change" : "Defect"}
+    </Badge>
+  );
+}
+
