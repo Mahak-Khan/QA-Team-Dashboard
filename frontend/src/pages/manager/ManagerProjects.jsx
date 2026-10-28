@@ -11,6 +11,91 @@ import { Modal } from "../../components/common/Modal";
 import { ConfirmModal } from "../../components/common/ConfirmModal";
 import { useToast } from "../../context/ToastContext";
 
+const formatShortDate = (dStr) => {
+  if (!dStr) return "";
+  try {
+    const parts = dStr.split("-");
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) {
+        const curYear = new Date().getFullYear();
+        const monthName = d.toLocaleString("en-US", { month: "short" });
+        return year !== curYear ? `${monthName} ${day}, '${String(year).slice(-2)}` : `${monthName} ${day}`;
+      }
+    }
+    const d = new Date(dStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }
+  } catch {
+    // fallback
+  }
+  return dStr;
+};
+
+const renderCompactTimeline = (startDate, endDate) => {
+  if (!startDate && !endDate) {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "0.3rem",
+          padding: "0.15rem 0.5rem",
+          borderRadius: "var(--radius-full)",
+          background: "var(--bg-surface-elevated)",
+          border: "1px solid var(--border-subtle)",
+          fontSize: "0.72rem",
+          color: "var(--text-faint)",
+          fontWeight: 500,
+          whiteSpace: "nowrap",
+        }}
+        title="Flexible timeline (no fixed dates)"
+      >
+        <Icon name="calendar" size={11} color="var(--text-faint)" />
+        <span>Flexible</span>
+      </span>
+    );
+  }
+
+  const startFormatted = formatShortDate(startDate);
+  const endFormatted = formatShortDate(endDate);
+
+  let label = "";
+  if (startFormatted && endFormatted) {
+    label = `${startFormatted} – ${endFormatted}`;
+  } else if (startFormatted) {
+    label = `From ${startFormatted}`;
+  } else {
+    label = `Due ${endFormatted}`;
+  }
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.32rem",
+        padding: "0.18rem 0.55rem",
+        borderRadius: "var(--radius-full)",
+        background: "rgba(99, 102, 241, 0.08)",
+        border: "1px solid rgba(99, 102, 241, 0.22)",
+        fontSize: "0.72rem",
+        color: "var(--primary)",
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+      }}
+      title={`Schedule: ${startDate || "Start"} to ${endDate || "Open"}`}
+    >
+      <Icon name="calendar" size={11} color="var(--primary)" />
+      <span>{label}</span>
+    </span>
+  );
+};
+
 export function ManagerProjects() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -335,9 +420,9 @@ export function ManagerProjects() {
             <table className="custom-table" style={{ minWidth: "960px" }}>
               <thead>
                 <tr>
-                  <th style={{ width: "24%" }}>Project Name</th>
+                  <th style={{ width: "26%" }}>Project Name</th>
                   <th style={{ width: "12%" }}>Status</th>
-                  <th style={{ width: "13%" }}>QA Timeline</th>
+                  <th style={{ width: "11%" }}>Timeline</th>
                   <th style={{ width: "12%" }}>Testing Sheet</th>
                   <th style={{ width: "26%" }}>Defect Tally</th>
                   <th style={{ width: "13%", textAlign: "right" }}>Actions</th>
@@ -429,18 +514,8 @@ export function ManagerProjects() {
                         <option value="on_hold">On Hold</option>
                       </select>
                     </td>
-                    <td>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.78rem", color: "var(--text-main)" }}>
-                          <Icon name="calendar" size={12} color="var(--primary)" />
-                          <span>{project.start_date ? project.start_date : "Flexible"}</span>
-                        </div>
-                        {project.end_date && (
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", paddingLeft: "1rem" }}>
-                            to {project.end_date}
-                          </span>
-                        )}
-                      </div>
+                    <td style={{ verticalAlign: "middle" }}>
+                      {renderCompactTimeline(project.start_date, project.end_date)}
                     </td>
                     <td>
                       {project.excel_sheet_url ? (
@@ -883,11 +958,7 @@ export function ManagerProjects() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <Icon name="calendar" size={13} />
-                  <span>
-                    {project.start_date ? project.start_date : "Flexible"}
-                    {project.end_date ? ` → ${project.end_date}` : ""}
-                  </span>
+                  {renderCompactTimeline(project.start_date, project.end_date)}
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
