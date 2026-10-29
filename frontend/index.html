@@ -7,6 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="QualityHub - Modern QA Management, Project Tracking, and Defect Triage Platform" />
   <title>QualityHub · Modern QA Management & Bug Tracking</title>
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem("qa_hub_theme") || "light";
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) {}
+    })();
+  </script>
 </head>
 
 <body>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser } from "../../services/authService";
 import { Icon } from "../../components/common/Icons";
+import { ThemeToggle } from "../../components/layout/ThemeToggle";
 import "./login.css";
 
 export function Login() {
@@ -40,6 +41,11 @@ export function Login() {
 
   return (
     <div className="login-viewport">
+      {/* Floating Theme Toggle Switch */}
+      <div className="login-theme-toggle-box">
+        <ThemeToggle />
+      </div>
+
       {/* Dynamic Animated Ambient Glow Orbs */}
       <div className="ambient-glow-mesh" aria-hidden="true">
         <div className="glow-orb glow-orb-1" />

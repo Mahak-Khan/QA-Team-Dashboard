@@ -390,3 +390,55 @@
     padding: 1.75rem 1.35rem;
   }
 }
+
+/* ========================================================
+   FLOATING THEME TOGGLE ON LOGIN SCREEN
+   ======================================================== */
+.login-theme-toggle-box {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.5rem;
+  z-index: 50;
+}
+
+/* ========================================================
+   DARK MODE OVERRIDES FOR LOGIN PORTAL
+   ======================================================== */
+[data-theme="dark"] .login-viewport {
+  background-color: #070b14;
+}
+
+[data-theme="dark"] .login-portal-card {
+  background: rgba(17, 24, 39, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 50px -10px rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="dark"] .portal-brand-header h1 {
+  color: #f8fafc;
+  -webkit-text-fill-color: #f8fafc;
+}
+
+[data-theme="dark"] .portal-brand-header p {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .portal-input-container {
+  background: rgba(15, 23, 42, 0.65);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .portal-input-container input {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .portal-input-container:focus-within {
+  background: rgba(15, 23, 42, 0.95);
+  border-color: #6366f1;
+}
+
+[data-theme="dark"] .portal-footer-strip {
+  border-top-color: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+

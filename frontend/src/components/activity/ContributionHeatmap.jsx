@@ -358,7 +358,7 @@ export function ContributionHeatmap({ heatmapData = [], totalContributions = 0, 
                 <div className="streak-icon-wrap">🔥</div>
                 <div>
                   <strong>Consecutive Daily Testing</strong>
-                  <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.8rem", color: "#78350f" }}>
+                  <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.8rem" }}>
                     Every calendar day you record at least 1 QA action extends your streak. If you were active yesterday, your streak remains active today so you have until midnight to log your day's work without losing your streak.
                   </p>
                 </div>

@@ -2,6 +2,7 @@ import React from "react";
 import { useLocation } from "react-router-dom";
 import { NotificationBell } from "./NotificationBell";
 import { ActivityTracker } from "./ActivityTracker";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Topbar({ role = "manager" }) {
   const location = useLocation();
@@ -32,6 +33,7 @@ export function Topbar({ role = "manager" }) {
       <div className="topbar-right">
         <ActivityTracker role={role} />
         <NotificationBell role={role} />
+        <ThemeToggle />
 
         <div className={`role-pill-badge ${role}`}>
           <span className="pulse-indicator" />

@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ToastProvider } from "./context/ToastContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { AppLayout } from "./components/layout/AppLayout";
 
 // Auth (eagerly loaded for instantaneous login page render)
@@ -51,52 +52,54 @@ function ProtectedRoute({ allowedRole, children }) {
 
 function App() {
   return (
-    <ToastProvider>
-      <Suspense fallback={null}>
-        <Routes>
-          {/* Public Login Route */}
-          <Route path="/" element={<Login />} />
+    <ThemeProvider>
+      <ToastProvider>
+        <Suspense fallback={null}>
+          <Routes>
+            {/* Public Login Route */}
+            <Route path="/" element={<Login />} />
 
-          {/* Manager Workspace Sub-routes */}
-          <Route
-            path="/manager"
-            element={
-              <ProtectedRoute allowedRole="manager">
-                <AppLayout role="manager" />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<ManagerOverview />} />
-            <Route path="projects" element={<ManagerProjects />} />
-            <Route path="team" element={<ManagerTeam />} />
-            <Route path="assignments" element={<ManagerAssignments />} />
-            <Route path="bugs" element={<ManagerBugs />} />
-            <Route path="bug-list" element={<ManagerBugList />} />
-            <Route path="reported-bugs" element={<ManagerBugList />} />
-          </Route>
+            {/* Manager Workspace Sub-routes */}
+            <Route
+              path="/manager"
+              element={
+                <ProtectedRoute allowedRole="manager">
+                  <AppLayout role="manager" />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<ManagerOverview />} />
+              <Route path="projects" element={<ManagerProjects />} />
+              <Route path="team" element={<ManagerTeam />} />
+              <Route path="assignments" element={<ManagerAssignments />} />
+              <Route path="bugs" element={<ManagerBugs />} />
+              <Route path="bug-list" element={<ManagerBugList />} />
+              <Route path="reported-bugs" element={<ManagerBugList />} />
+            </Route>
 
-          {/* Tester Workspace Sub-routes */}
-          <Route
-            path="/tester"
-            element={
-              <ProtectedRoute allowedRole="tester">
-                <AppLayout role="tester" />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<TesterOverview />} />
-            <Route path="projects" element={<TesterProjects />} />
-            <Route path="progress" element={<TesterProgress />} />
-            <Route path="bugs" element={<TesterBugs />} />
-            <Route path="bug-list" element={<TesterBugList />} />
-            <Route path="reported-bugs" element={<TesterBugList />} />
-          </Route>
+            {/* Tester Workspace Sub-routes */}
+            <Route
+              path="/tester"
+              element={
+                <ProtectedRoute allowedRole="tester">
+                  <AppLayout role="tester" />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<TesterOverview />} />
+              <Route path="projects" element={<TesterProjects />} />
+              <Route path="progress" element={<TesterProgress />} />
+              <Route path="bugs" element={<TesterBugs />} />
+              <Route path="bug-list" element={<TesterBugList />} />
+              <Route path="reported-bugs" element={<TesterBugList />} />
+            </Route>
 
-          {/* Fallback to Login */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </ToastProvider>
+            {/* Fallback to Login */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
 
