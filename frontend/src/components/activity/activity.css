@@ -98,8 +98,8 @@
 }
 
 .activity-stat-card {
-  background: var(--bg-surface, #1e293b);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  background: #ffffff;
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-md, 8px);
   padding: 0.75rem 1rem;
   display: flex;
@@ -107,6 +107,7 @@
   gap: 0.25rem;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .activity-stat-card::before {
@@ -122,7 +123,7 @@
 .activity-stat-value {
   font-size: 1.35rem;
   font-weight: 700;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-main);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -130,7 +131,7 @@
 
 .activity-stat-label {
   font-size: 0.75rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -141,8 +142,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  background: #f8fafc;
+  border: 1px solid var(--border-default);
   padding: 0.6rem 0.9rem;
   border-radius: var(--radius-md, 8px);
 }
@@ -154,9 +155,9 @@
 }
 
 .activity-select-input {
-  background: var(--bg-surface, #1e293b);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
-  color: var(--text-primary, #f8fafc);
+  background: #ffffff;
+  border: 1px solid var(--border-bright);
+  color: var(--text-main);
   padding: 0.35rem 0.75rem;
   border-radius: var(--radius-sm, 6px);
   font-size: 0.85rem;
@@ -174,14 +175,14 @@
    ======================================================== */
 
 .activity-heatmap-wrapper {
-  background: var(--bg-surface, #1e293b);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  background: #ffffff;
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg, 12px);
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .activity-heatmap-header {
@@ -199,12 +200,12 @@
 .activity-total-tally .total-num {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-main);
 }
 
 .activity-total-tally .total-label {
   font-size: 0.85rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
 }
 
 .activity-rules-hint {
@@ -319,8 +320,8 @@
 
 /* GitHub Level Colors */
 .calendar-cell.level-0 {
-  background: #161b22;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #e2e8f0;
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .calendar-cell.level-1 {
@@ -436,31 +437,32 @@
 .team-activity-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--bg-surface, #1e293b);
+  background: #ffffff;
   border-radius: var(--radius-md, 8px);
   overflow: hidden;
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--border-default);
 }
 
 .team-activity-table th {
-  background: rgba(0, 0, 0, 0.2);
+  background: #f8fafc;
   text-align: left;
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   font-size: 0.75rem;
   text-transform: uppercase;
-  color: var(--text-muted, #94a3b8);
-  font-weight: 600;
+  color: var(--text-muted);
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .team-activity-table td {
   padding: 0.75rem 1rem;
-  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.05));
+  border-top: 1px solid #f1f5f9;
   font-size: 0.85rem;
-  color: var(--text-secondary, #cbd5e1);
+  color: var(--text-secondary);
 }
 
 .team-activity-table tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: #f8fafc;
 }
 
 .tester-name-cell {
@@ -499,15 +501,17 @@
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  background: var(--bg-surface, #1e293b);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  background: #ffffff;
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-md, 8px);
   padding: 0.75rem 0.9rem;
-  transition: border-color 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .activity-feed-item:hover {
-  border-color: rgba(16, 185, 129, 0.3);
+  border-color: #10b981;
+  box-shadow: var(--shadow-md);
 }
 
 .activity-item-icon {

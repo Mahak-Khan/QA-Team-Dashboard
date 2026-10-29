@@ -78,7 +78,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-bright);
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.15), 0 0 0 1px var(--border-default);
   backdrop-filter: blur(20px);
   z-index: 100;
   display: flex;
@@ -105,8 +105,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-subtle);
-  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid var(--border-default);
+  background: #ffffff;
 }
 
 .notification-header-title {
@@ -227,7 +227,7 @@
 }
 
 .notification-item-card.unread {
-  background: rgba(30, 41, 69, 0.75);
+  background: #eef2ff;
   border-left: 3px solid var(--primary);
   border-color: rgba(99, 102, 241, 0.35);
 }
@@ -308,7 +308,7 @@
   align-items: center;
   justify-content: space-between;
   padding-top: 0.35rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .notification-project-tag {
@@ -316,7 +316,7 @@
   font-weight: 600;
   padding: 0.15rem 0.45rem;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.05);
+  background: #f1f5f9;
   color: var(--text-muted);
 }
 
@@ -368,8 +368,8 @@
 /* Popover Footer */
 .notification-popover-footer {
   padding: 0.75rem 1.1rem;
-  background: rgba(15, 23, 42, 0.95);
-  border-top: 1px solid var(--border-subtle);
+  background: #f8fafc;
+  border-top: 1px solid var(--border-default);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -538,8 +538,8 @@
 .view-mode-toggle {
   display: inline-flex;
   align-items: center;
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-default);
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: var(--radius-md);
   padding: 3px;
   gap: 2px;
@@ -552,8 +552,8 @@
   padding: 0.35rem 0.75rem;
   border-radius: var(--radius-sm);
   background: transparent;
-  border: none;
-  color: var(--text-muted);
+  border: 1px solid transparent;
+  color: #64748b;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
@@ -561,14 +561,15 @@
 }
 
 .view-mode-btn:hover {
-  color: var(--text-main);
-  background: rgba(255, 255, 255, 0.04);
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .view-mode-btn.active {
-  background: var(--primary);
-  color: #ffffff;
-  box-shadow: 0 0 10px var(--primary-glow);
+  background: #ffffff;
+  color: var(--primary);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 /* Table Enhancements for Simple List */

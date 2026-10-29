@@ -284,7 +284,7 @@ export function ManagerAssignments() {
                           style={{
                             flex: 1,
                             height: 7,
-                            background: "rgba(255, 255, 255, 0.08)",
+                            background: "var(--border-default)",
                             borderRadius: "var(--radius-full)",
                             overflow: "hidden",
                           }}

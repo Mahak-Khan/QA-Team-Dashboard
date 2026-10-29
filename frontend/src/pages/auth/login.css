@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  background-color: #060913;
+  background-color: #0c1427;
   overflow: hidden;
   padding: 1.25rem;
   box-sizing: border-box;
@@ -85,8 +85,8 @@
   position: absolute;
   inset: 0;
   background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 40px 40px;
   mask-image: radial-gradient(circle at 50% 50%, black 40%, transparent 85%);
   -webkit-mask-image: radial-gradient(circle at 50% 50%, black 40%, transparent 85%);
@@ -98,14 +98,14 @@
 .login-portal-card {
   width: 100%;
   max-width: 420px;
-  background: rgba(13, 19, 36, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 22px;
   padding: 2.25rem 2rem;
   box-shadow: 
-    0 25px 60px -15px rgba(0, 0, 0, 0.85),
+    0 25px 60px -15px rgba(0, 0, 0, 0.55),
     0 0 50px -10px rgba(99, 102, 241, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 1);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   position: relative;
@@ -183,14 +183,14 @@
   font-size: 1.7rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #0f172a;
+  background: none;
+  -webkit-text-fill-color: #0f172a;
   margin-bottom: 0.25rem;
 }
 
 .portal-brand-header p {
-  color: #94a3b8;
+  color: #64748b;
   font-size: 0.85rem;
   line-height: 1.4;
 }
@@ -211,7 +211,7 @@
 .form-field-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #334155;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -227,7 +227,7 @@
 .field-leading-icon {
   position: absolute;
   left: 0.95rem;
-  color: #64748b;
+  color: #94a3b8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -240,23 +240,23 @@
   width: 100% !important;
   box-sizing: border-box !important;
   padding: 0.75rem 2.75rem 0.75rem 2.75rem !important;
-  background: rgba(18, 26, 46, 0.85) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
   border-radius: 12px !important;
-  color: #ffffff !important;
+  color: #0f172a !important;
   font-size: 0.9rem !important;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   outline: none !important;
 }
 
 .field-input-box input::placeholder {
-  color: #475569 !important;
+  color: #94a3b8 !important;
 }
 
 .field-input-box input:focus {
   border-color: #6366f1 !important;
-  background: rgba(23, 34, 60, 0.95) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), 0 0 20px rgba(99, 102, 241, 0.2) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2), 0 0 15px rgba(99, 102, 241, 0.1) !important;
 }
 
 .field-input-box input:focus ~ .field-leading-icon,
@@ -280,7 +280,7 @@
 }
 
 .password-toggle-btn:hover {
-  color: #cbd5e1;
+  color: #0f172a;
 }
 
 /* Error Banner */
@@ -290,9 +290,9 @@
   gap: 0.65rem;
   padding: 0.7rem 0.95rem;
   border-radius: 10px;
-  background: rgba(244, 63, 94, 0.14);
-  border: 1px solid rgba(244, 63, 94, 0.4);
-  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #e11d48;
   font-size: 0.825rem;
   animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
@@ -358,7 +358,7 @@
   align-items: center;
   justify-content: space-between;
   padding-top: 1.15rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid #e2e8f0;
   font-size: 0.725rem;
   color: #64748b;
 }

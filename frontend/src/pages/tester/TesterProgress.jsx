@@ -505,7 +505,7 @@ export function TesterProgress() {
                         </td>
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            <div style={{ width: 80, height: 6, background: "rgba(255,255,255,0.08)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
+                            <div style={{ width: 80, height: 6, background: "var(--border-default)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
                               <div
                                 style={{
                                   width: `${h.progress}%`,

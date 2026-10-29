@@ -322,7 +322,7 @@ export function ManagerOverview() {
                 width: 38,
                 height: 38,
                 borderRadius: "var(--radius-md)",
-                background: isFiltered ? "var(--primary-subtle)" : "rgba(255, 255, 255, 0.05)",
+                background: isFiltered ? "var(--primary-subtle)" : "var(--bg-surface-elevated)",
                 color: isFiltered ? "var(--primary)" : "var(--text-muted)",
                 display: "flex",
                 alignItems: "center",

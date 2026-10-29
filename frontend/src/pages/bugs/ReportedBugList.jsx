@@ -1094,7 +1094,8 @@ export function ReportedBugList({ role = "manager" }) {
                               style={{
                                 padding: "0.12rem 0.4rem",
                                 borderRadius: "var(--radius-sm)",
-                                background: "rgba(255, 255, 255, 0.06)",
+                                background: "var(--bg-surface-elevated)",
+                                border: "1px solid var(--border-default)",
                                 color: "var(--text-faint)",
                                 fontSize: "0.7rem",
                                 whiteSpace: "nowrap",
