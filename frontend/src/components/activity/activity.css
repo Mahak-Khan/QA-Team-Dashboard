@@ -79,14 +79,14 @@
 }
 
 .activity-tab-btn:hover {
-  color: var(--text-primary, #f8fafc);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  background: #f1f5f9;
 }
 
 .activity-tab-btn.active {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.3);
+  color: #059669;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
   font-weight: 600;
 }
 
@@ -210,11 +210,12 @@
 
 .activity-rules-hint {
   font-size: 0.75rem;
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
-  padding: 0.2rem 0.55rem;
+  color: #047857;
+  background: #ecfdf5;
+  padding: 0.2rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid #a7f3d0;
+  font-weight: 600;
 }
 
 /* Scroll Area for Heatmap Grid */
@@ -558,19 +559,19 @@
 
 .activity-feed-title {
   font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-primary, #f8fafc);
+  font-weight: 700;
+  color: var(--text-main);
 }
 
 .activity-feed-time {
   font-size: 0.72rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
 .activity-feed-desc {
   font-size: 0.78rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
   margin: 0.2rem 0 0 0;
 }
 
@@ -579,7 +580,7 @@
   align-items: center;
   gap: 0.3rem;
   font-size: 0.7rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   margin-top: 0.35rem;
 }
 
@@ -592,9 +593,9 @@
   border: none;
   padding: 0.2rem 0.45rem;
   border-radius: var(--radius-sm, 6px);
-  color: #10b981;
+  color: #059669;
   font-size: 0.76rem;
-  font-weight: 500;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -605,8 +606,8 @@
 }
 
 .activity-learn-link-btn:hover {
-  color: #34d399;
-  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  background: #ecfdf5;
 }
 
 .qa-guide-modal-content {
@@ -622,8 +623,8 @@
   display: flex;
   align-items: flex-start;
   gap: 0.85rem;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.08));
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
   border-radius: var(--radius-md, 8px);
   padding: 1rem;
 }
@@ -642,14 +643,14 @@
 .qa-guide-hero h4 {
   margin: 0 0 0.25rem 0;
   font-size: 0.95rem;
-  color: var(--text-primary, #f8fafc);
-  font-weight: 600;
+  color: #065f46;
+  font-weight: 700;
 }
 
 .qa-guide-hero p {
   margin: 0;
   font-size: 0.82rem;
-  color: var(--text-secondary, #94a3b8);
+  color: #047857;
   line-height: 1.45;
 }
 
@@ -664,7 +665,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-main);
 }
 
 .qa-actions-grid {
@@ -674,13 +675,14 @@
 }
 
 .qa-action-card {
-  background: var(--bg-surface, #1e293b);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  background: #f8fafc;
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-md, 8px);
   padding: 0.85rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .qa-action-badge {
@@ -694,29 +696,33 @@
 }
 
 .qa-action-badge.bug {
-  background: rgba(244, 63, 94, 0.15);
-  color: #f43f5e;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
 }
 
 .qa-action-badge.status {
-  background: rgba(6, 182, 212, 0.15);
-  color: #06b6d4;
+  background: #cffafe;
+  color: #0e7490;
+  border: 1px solid #67e8f9;
 }
 
 .qa-action-badge.progress {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
 }
 
 .qa-action-badge.session {
-  background: rgba(168, 85, 247, 0.15);
-  color: #a855f7;
+  background: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid #d8b4fe;
 }
 
 .qa-action-card-desc {
   margin: 0;
   font-size: 0.78rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
@@ -724,8 +730,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  background: var(--bg-surface, #1e293b);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  background: #f8fafc;
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-md, 8px);
   padding: 0.75rem 0.9rem;
 }
@@ -735,7 +741,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.3rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .qa-level-row:last-child {
@@ -744,24 +750,33 @@
 
 .qa-level-range {
   font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-primary, #f8fafc);
+  font-weight: 700;
+  color: var(--text-main);
   min-width: 95px;
 }
 
 .qa-level-meaning {
   font-size: 0.78rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary);
 }
 
 .qa-streak-info-box {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: #fef3c7;
+  border: 1px solid #fde68a;
   border-radius: var(--radius-md, 8px);
   padding: 0.85rem;
+  color: #78350f;
+}
+
+.qa-streak-info-box strong {
+  color: #92400e;
+}
+
+.qa-streak-info-box p {
+  color: #78350f !important;
 }
 
 .streak-icon-wrap {
@@ -773,12 +788,16 @@
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
   border-radius: var(--radius-md, 8px);
   padding: 0.75rem 0.9rem;
   font-size: 0.78rem;
-  color: var(--text-secondary, #94a3b8);
+  color: #065f46;
   line-height: 1.45;
+}
+
+.qa-fair-note strong {
+  color: #064e3b;
 }
 
